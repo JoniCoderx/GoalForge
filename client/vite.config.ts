@@ -1,9 +1,10 @@
-/// <reference types="vitest" />
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 
-// https://vitejs.dev/config/
+// Production build config. Test config lives in vitest.config.ts so this file
+// depends only on runtime/build packages (no dev-only vitest import), which
+// keeps `vite build` working even when dev dependencies are omitted.
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -32,10 +33,5 @@ export default defineConfig({
         },
       },
     },
-  },
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
   },
 });
