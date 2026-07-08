@@ -1,0 +1,153 @@
+// GoalForge AI — Prisma schema
+// Cross-provider: SQLite for local dev, PostgreSQL in production.
+// The `provider` line below is rewritten at build time by
+// scripts/set-db-provider.mjs based on the DATABASE_PROVIDER env var,
+// so the same model definitions serve both databases.
+// Structured data is stored as JSON strings to stay portable across engines.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("USER") // USER | ADMIN
+  avatarColor  String   @default("#22c55e")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  brand      BrandSettings?
+  videos     Video[]
+  exportJobs ExportJob[]
+  logs       Log[]
+
+  @@index([email])
+}
+
+model BrandSettings {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  brandName        String   @default("GoalForge AI")
+  primaryColor     String   @default("#22c55e")
+  secondaryColor   String   @default("#0ea5e9")
+  accentColor      String   @default("#f59e0b")
+  backgroundColor  String   @default("#050914")
+  fontFamily       String   @default("BigShoulders")
+  watermarkText    String   @default("@goalforge")
+  watermarkEnabled Boolean  @default(true)
+  logoPath         String?
+  outroPath        String?
+  ctaText          String   @default("Follow for daily football content ⚽")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Template {
+  id             String   @id @default(cuid())
+  key            String   @unique
+  name           String
+  description    String
+  category       String
+  icon           String   @default("⚽")
+  gradient       String   @default("from-emerald-500 to-sky-500")
+  promptTemplate String
+  sceneCount     Int      @default(6)
+  accentColor    String   @default("#22c55e")
+  isSystem       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Prompt {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String
+  category    String   @default("system")
+  content     String
+  isSystem    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Video {
+  id                   String   @id @default(cuid())
+  userId               String
+  title                String
+  topic                String
+  templateKey          String
+  status               String   @default("DRAFT") // DRAFT | QUEUED | RENDERING | READY | FAILED
+  hook                 String   @default("")
+  script               String   @default("")
+  scenes               String   @default("[]") // JSON string
+  caption              String   @default("")
+  hashtags             String   @default("[]") // JSON string
+  tiktokDescription    String   @default("")
+  instagramDescription String   @default("")
+  youtubeDescription   String   @default("")
+  thumbnailText        String   @default("")
+  cta                  String   @default("")
+  videoPath            String?
+  thumbnailPath        String?
+  durationSec          Float    @default(0)
+  width                Int      @default(1080)
+  height               Int      @default(1920)
+  fps                  Int      @default(60)
+  views                Int      @default(0)
+  likes                Int      @default(0)
+  shares               Int      @default(0)
+  error                String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exportJobs ExportJob[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model ExportJob {
+  id         String    @id @default(cuid())
+  videoId    String
+  userId     String
+  status     String    @default("QUEUED") // QUEUED | RENDERING | READY | FAILED
+  progress   Int       @default(0)
+  stage      String    @default("queued")
+  error      String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([videoId])
+  @@index([status])
+}
+
+model Log {
+  id        String   @id @default(cuid())
+  level     String   @default("info") // info | warn | error
+  message   String
+  context   String   @default("{}") // JSON string
+  userId    String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([level])
+  @@index([createdAt])
+}
