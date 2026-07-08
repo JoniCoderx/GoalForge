@@ -67,7 +67,7 @@ export function assertProductionSafety(): void {
     errors.push('JWT_SECRET must be set to a strong, unique value in production.');
   }
   if (env.jwtSecret.length < 16) {
-    errors.push('JWT_SECRET is too short (use at least 32 random characters).');
+    errors.push('JWT_SECRET is too short — use at least 16 characters (32+ recommended).');
   }
   if (errors.length) {
     throw new Error(`Insecure production configuration:\n- ${errors.join('\n- ')}`);

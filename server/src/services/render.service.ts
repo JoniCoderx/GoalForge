@@ -52,7 +52,19 @@ async function tick(): Promise<void> {
   try {
     while (queue.length > 0) {
       const jobId = queue.shift()!;
-      await processJob(jobId);
+      // Never let one job's failure (incl. transient DB errors) reject the loop
+      // and surface as an unhandled rejection — isolate each job.
+      try {
+        await processJob(jobId);
+      } catch (err) {
+        logger.error('Render job crashed', {
+          jobId,
+          message: err instanceof Error ? err.message : String(err),
+        });
+        await prisma.exportJob
+          .update({ where: { id: jobId }, data: { status: 'FAILED', error: 'Render failed unexpectedly', finishedAt: new Date() } })
+          .catch(() => undefined);
+      }
     }
   } finally {
     running = false;

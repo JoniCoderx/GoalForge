@@ -47,6 +47,17 @@ async function main() {
   };
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
   process.on('SIGINT', () => void shutdown('SIGINT'));
+
+  // Safety nets so a stray rejection never silently crashes the server.
+  process.on('unhandledRejection', (reason) => {
+    logger.error('Unhandled promise rejection', {
+      message: reason instanceof Error ? reason.message : String(reason),
+    });
+  });
+  process.on('uncaughtException', (err) => {
+    logger.error('Uncaught exception — exiting for a clean restart', { message: err.message });
+    void shutdown('uncaughtException');
+  });
 }
 
 main().catch((err) => {
