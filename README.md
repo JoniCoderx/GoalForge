@@ -146,17 +146,17 @@ the same schema serves both engines with no edits.
 ### First deploy checklist
 
 1. Create the PostgreSQL database in Render.
-2. Create the Web Service from this repo with the Build/Start commands above.
+2. Create the Web Service from this repo (Root Directory = repo root) with the
+   Build/Start commands above.
 3. Add the environment variables from the table.
-4. Deploy. On first boot, `prisma db push` creates the tables automatically.
-5. (Optional) To seed templates/prompts/admin in production, run
-   `npm run prisma:seed --workspace server` from the Render Shell.
+4. Deploy. On first boot the app **self-provisions**:
+   - `prisma db push` creates the tables,
+   - a startup bootstrap idempotently seeds all 10 templates and the system prompts,
+   - and, if `ADMIN_EMAIL` + `ADMIN_PASSWORD` are set, it creates an admin user.
 
-> **Note:** the built-in templates and system prompts are also self-healing —
-> the admin seed is the only way to create the admin user, so run the seed once
-> (step 5) if you want the pre-made admin login in production. Otherwise just
-> register a new account (the first registered user can be promoted to admin by
-> updating its `role` to `ADMIN`).
+That's it — no manual seed or migration step. The app is fully functional the
+moment the deploy goes live. (You can still run `npm run prisma:seed --workspace server`
+from the Render Shell if you want the extra demo user.)
 
 ## 🎬 The video engine
 

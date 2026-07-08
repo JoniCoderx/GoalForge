@@ -2,6 +2,7 @@ import { createApp } from './app.js';
 import { env } from './config/env.js';
 import { logger } from './lib/logger.js';
 import { prisma } from './lib/prisma.js';
+import { bootstrap } from './services/bootstrap.js';
 
 async function main() {
   const app = createApp();
@@ -9,6 +10,8 @@ async function main() {
   // Verify DB connectivity early with a clear error if misconfigured.
   try {
     await prisma.$queryRaw`SELECT 1`;
+    // Idempotently seed templates/prompts (and admin) so a fresh prod DB works out of the box.
+    await bootstrap();
   } catch (err) {
     logger.error('Database connection failed', {
       message: err instanceof Error ? err.message : String(err),
