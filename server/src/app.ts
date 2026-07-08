@@ -87,16 +87,18 @@ export function createApp(): Express {
   app.use('/api/ai', aiLimiter);
   app.use('/api/videos/generate', aiLimiter);
 
-  // Broad abuse limiter across the whole API surface. This must be generous
-  // enough for a normal dashboard session: the app legitimately polls status
-  // endpoints (export queue, render progress) every couple of seconds, so a
-  // low ceiling here would 429 real users. The sensitive/expensive endpoints
-  // (auth, AI generation) are protected by the strict limiters above.
+  // Broad abuse limiter for ANONYMOUS traffic only. Authenticated requests are
+  // exempt: the dashboard legitimately polls status endpoints (export queue,
+  // render progress) every couple of seconds, and throttling logged-in users
+  // is what caused "Couldn't load…" cards. Logged-in users are already
+  // accountable, and their expensive actions (auth, AI generation) keep the
+  // strict limiters above. This makes dashboard polling impossible to 429.
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: env.isProd ? 5000 : 20000,
+    max: env.isProd ? 1000 : 20000,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => Boolean(req.headers.authorization),
     message: jsonMessage('Too many requests. Please try again later.'),
   });
   app.use('/api', limiter);
