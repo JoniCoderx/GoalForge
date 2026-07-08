@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma.js';
 import { logger } from '../lib/logger.js';
 import { renderVideo } from './video.service.js';
+import { recordActivity } from './activity.service.js';
 import { parseJson } from '../utils/http.js';
 import type { Scene } from '../types/content.js';
 
@@ -142,6 +143,7 @@ async function processJob(jobId: string): Promise<void> {
     });
     logger.info(`Rendered video ${video.id}`, { duration: result.durationSec });
     void logger.record('info', `Video rendered: ${video.title}`, { videoId: video.id }, video.userId);
+    void recordActivity('render', `Rendered "${video.title}"`, video.userId, { videoId: video.id });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error(`Render failed for ${video.id}`, { message });
@@ -151,6 +153,7 @@ async function processJob(jobId: string): Promise<void> {
       data: { status: 'FAILED', error: message, finishedAt: new Date() },
     });
     void logger.record('error', `Render failed: ${message}`, { videoId: video.id }, video.userId);
+    void recordActivity('error', `Render failed for "${video.title}"`, video.userId, { message });
   }
 }
 

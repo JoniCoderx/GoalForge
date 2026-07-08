@@ -20,9 +20,9 @@ const variants: Record<Variant, string> = {
 };
 
 const sizes: Record<Size, string> = {
-  sm: 'text-sm px-3 py-1.5',
-  md: 'text-sm px-4 py-2.5',
-  lg: 'text-base px-6 py-3.5',
+  sm: 'text-sm px-4 py-2 min-h-[40px]',
+  md: '', // inherits the larger default sizing from the .btn base
+  lg: 'text-base px-7 py-3.5 min-h-[54px]',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(

@@ -21,6 +21,14 @@ model User {
   name         String
   role         String   @default("USER") // USER | ADMIN
   avatarColor  String   @default("#22c55e")
+
+  // Subscription / access management (owner console).
+  plan           String    @default("free")   // free | creator | studio
+  status         String    @default("active") // active | trial | expired | banned
+  premiumUntil   DateTime?
+  usageResetAt   DateTime  @default(now())
+  lastActivityAt DateTime  @default(now())
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -28,8 +36,11 @@ model User {
   videos     Video[]
   exportJobs ExportJob[]
   logs       Log[]
+  activities Activity[]
 
   @@index([email])
+  @@index([status])
+  @@index([plan])
 }
 
 model BrandSettings {
@@ -150,4 +161,34 @@ model Log {
 
   @@index([level])
   @@index([createdAt])
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  userId    String?
+  type      String   @default("event") // signup | login | generate | export | render | error
+  message   String
+  meta      String   @default("{}") // JSON string
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([type])
+  @@index([createdAt])
+  @@index([userId])
+}
+
+model Coupon {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  discountPercent Int       @default(10)
+  maxUses         Int?
+  usedCount       Int       @default(0)
+  expiresAt       DateTime?
+  active          Boolean   @default(true)
+  note            String    @default("")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([active])
 }

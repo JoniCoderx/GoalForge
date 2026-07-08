@@ -3,11 +3,12 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { hashPassword, verifyPassword } from '../utils/password.js';
 import { signToken } from '../utils/jwt.js';
-import { asyncHandler, badRequest, unauthorized } from '../utils/http.js';
+import { asyncHandler, badRequest, forbidden, unauthorized } from '../utils/http.js';
 import { validateBody } from '../middleware/validate.js';
 import { requireAuth } from '../middleware/auth.js';
 import { TEMPLATE_SEEDS } from '../data/templates.js';
 import { env } from '../config/env.js';
+import { recordActivity } from '../services/activity.service.js';
 
 const router = Router();
 
@@ -44,6 +45,7 @@ router.post(
 
     // Provision default brand settings so the app works immediately.
     await prisma.brandSettings.create({ data: { userId: user.id } });
+    void recordActivity('signup', `${user.email} created an account`, user.id);
 
     const token = signToken({ sub: user.id, email: user.email, role: user.role });
     res.cookie('token', token, {
@@ -65,6 +67,7 @@ router.post(
     if (!user) throw unauthorized('Invalid email or password');
     const ok = await verifyPassword(password, user.passwordHash);
     if (!ok) throw unauthorized('Invalid email or password');
+    if (user.status === 'banned') throw forbidden('Your account has been suspended.');
 
     const token = signToken({ sub: user.id, email: user.email, role: user.role });
     res.cookie('token', token, {
@@ -73,6 +76,7 @@ router.post(
       sameSite: 'lax',
       maxAge: 7 * 24 * 3600 * 1000,
     });
+    void recordActivity('login', `${user.email} logged in`, user.id);
     res.json({ token, user: publicUser(user) });
   })
 );
@@ -88,6 +92,8 @@ router.get(
   asyncHandler(async (req, res) => {
     const user = await prisma.user.findUnique({ where: { id: req.user!.sub } });
     if (!user) throw unauthorized();
+    // Enforce bans on the next app load — a suspended user is logged out.
+    if (user.status === 'banned') throw forbidden('Your account has been suspended.');
     res.json({ user: publicUser(user) });
   })
 );

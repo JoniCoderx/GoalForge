@@ -16,3 +16,17 @@ export function signToken(payload: JwtPayload): string {
 export function verifyToken(token: string): JwtPayload {
   return jwt.verify(token, env.jwtSecret) as JwtPayload;
 }
+
+/** Console (owner-only) session token, obtained by entering the console password. */
+export function signConsoleToken(): string {
+  return jwt.sign({ scope: 'console' }, env.jwtSecret, { expiresIn: '12h' });
+}
+
+export function verifyConsoleToken(token: string): boolean {
+  try {
+    const payload = jwt.verify(token, env.jwtSecret) as { scope?: string };
+    return payload.scope === 'console';
+  } catch {
+    return false;
+  }
+}

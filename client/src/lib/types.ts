@@ -160,3 +160,67 @@ export interface LogEntry {
   userId: string | null;
   createdAt: string;
 }
+
+/* ─────────────── Owner console (/users) ─────────────── */
+
+export type UserPlan = 'free' | 'creator' | 'studio';
+export type UserStatus = 'active' | 'trial' | 'expired' | 'banned';
+
+export interface ConsoleUser {
+  id: string;
+  name: string;
+  email: string;
+  role: 'USER' | 'ADMIN';
+  avatarColor: string;
+  plan: UserPlan;
+  status: UserStatus;
+  premiumUntil: string | null;
+  usageResetAt: string;
+  lastActivityAt: string;
+  createdAt: string;
+  videos: number;
+  exports: number;
+}
+
+export interface ConsoleMetrics {
+  totals: {
+    totalUsers: number;
+    activeUsers: number;
+    premiumUsers: number;
+    bannedUsers: number;
+    totalVideos: number;
+    rendered: number;
+    totalExports: number;
+  };
+  timeline: { date: string; signups: number; renders: number }[];
+}
+
+export interface ActivityItem {
+  id: string;
+  userId: string | null;
+  type: string;
+  message: string;
+  meta: string;
+  createdAt: string;
+  user?: { email: string; name: string; avatarColor: string } | null;
+}
+
+export interface ConsoleUserDetail {
+  user: ConsoleUser;
+  activity: ActivityItem[];
+  videos: { id: string; title: string; status: VideoStatus; templateKey: string; createdAt: string }[];
+  failedRenders: number;
+}
+
+export interface Coupon {
+  id: string;
+  code: string;
+  discountPercent: number;
+  maxUses: number | null;
+  usedCount: number;
+  expiresAt: string | null;
+  active: boolean;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
+}

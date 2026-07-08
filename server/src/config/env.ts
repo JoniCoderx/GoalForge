@@ -35,6 +35,9 @@ export const env = {
   jwtSecret: str('JWT_SECRET', DEFAULT_JWT_SECRET),
   jwtExpiresIn: str('JWT_EXPIRES_IN', '7d'),
 
+  // Password gate for the private owner console at /users.
+  superadminPassword: str('SUPERADMIN_PASSWORD', 'ONLYME123'),
+
   databaseUrl: str('DATABASE_URL', 'file:./dev.db'),
 
   openaiApiKey: str('OPENAI_API_KEY', ''),

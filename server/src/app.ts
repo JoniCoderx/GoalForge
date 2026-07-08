@@ -74,6 +74,7 @@ export function createApp(): Express {
   });
   app.use('/api/auth/login', authLimiter);
   app.use('/api/auth/register', authLimiter);
+  app.use('/api/console/auth', authLimiter);
 
   // Tighter limiter on cost-bearing AI generation endpoints.
   const aiLimiter = rateLimit({

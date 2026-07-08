@@ -55,7 +55,7 @@ body {
     @apply bg-gradient-to-r from-brand-400 via-emerald-300 to-accent-sky bg-clip-text text-transparent;
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/60;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-[15px] font-semibold min-h-[46px] transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/60;
   }
   .btn-primary {
     @apply btn bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-glow hover:brightness-110 active:scale-[0.98];

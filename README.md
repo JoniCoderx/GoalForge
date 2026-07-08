@@ -124,7 +124,21 @@ built React client) plus a **PostgreSQL** instance. You can deploy via the
 | `OPENAI_API_KEY`    | your OpenAI key (optional but recommended) |
 | `OPENAI_MODEL`      | `gpt-4o-mini` (default) |
 | `CORS_ORIGINS`      | optional, comma-separated extra origins for your custom domain, e.g. `https://goalforge.top` (same-origin needs nothing) |
+| `SUPERADMIN_PASSWORD` | password for the private owner console at `/users` (defaults to `ONLYME123` — change it in production) |
 | `NODE_VERSION`      | `22` |
+
+### Owner console (`/users`)
+
+A private, password-gated operations console lives at **`/users`** — separate from
+the normal app and admin panel, and **not linked in any navigation**. Enter the
+`SUPERADMIN_PASSWORD` to unlock it. It's protected on the backend too: every
+`/api/console/*` endpoint requires a console token issued only by the correct
+password, so no regular or admin user session can reach it. From here you can
+manage users (search, view details, plans, trial/active/expired/banned status,
+grant/revoke premium, ban/unban, reset limits), create and manage discount
+coupons, watch a live activity feed (logins, generations, renders, errors), and
+see platform metrics (users, premium, banned, videos, exports, daily signups &
+renders).
 
 ### Why these exact commands?
 

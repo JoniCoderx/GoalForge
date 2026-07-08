@@ -9,6 +9,7 @@ import { enqueueRender } from '../services/render.service.js';
 import { serializeVideo } from '../utils/serialize.js';
 import { env } from '../config/env.js';
 import { storage } from '../services/storage/index.js';
+import { recordActivity } from '../services/activity.service.js';
 import type { Scene } from '../types/content.js';
 
 const router = Router();
@@ -112,6 +113,7 @@ router.post(
       },
     });
 
+    void recordActivity('generate', `Generated "${video.title}"`, req.user!.sub, { templateKey: template.key });
     let jobId: string | undefined;
     if (autoExport) jobId = await enqueueRender(video.id, req.user!.sub);
 
@@ -199,6 +201,7 @@ router.post(
       throw badRequest('This video is already in the export queue');
     }
     const jobId = await enqueueRender(video.id, req.user!.sub);
+    void recordActivity('export', `Queued export for "${video.title}"`, req.user!.sub);
     res.status(202).json({ jobId, status: 'QUEUED' });
   })
 );

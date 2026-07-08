@@ -1,18 +1,34 @@
 import type {
+  ActivityItem,
   AdminStats,
   AdminUser,
   AnalyticsOverview,
   BrandSettings,
+  ConsoleMetrics,
+  ConsoleUser,
+  ConsoleUserDetail,
+  Coupon,
   ExportJob,
   GeneratedContent,
   LogEntry,
   Prompt,
   Template,
   User,
+  UserPlan,
+  UserStatus,
   Video,
 } from './types';
 
 const TOKEN_KEY = 'goalforge_token';
+const CONSOLE_TOKEN_KEY = 'goalforge_console_token';
+
+export function getConsoleToken(): string | null {
+  return localStorage.getItem(CONSOLE_TOKEN_KEY);
+}
+export function setConsoleToken(token: string | null) {
+  if (token) localStorage.setItem(CONSOLE_TOKEN_KEY, token);
+  else localStorage.removeItem(CONSOLE_TOKEN_KEY);
+}
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -134,4 +150,74 @@ export const api = {
       post<{ prompt: Prompt }>('/admin/prompts', data),
     deletePrompt: (key: string) => del<{ ok: boolean }>(`/admin/prompts/${key}`),
   },
+};
+
+/* ─────────────── Owner console (/users) — token via x-console-token ─────────────── */
+
+async function consoleRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = getConsoleToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+  if (token) headers['x-console-token'] = token;
+
+  const res = await fetch(`/api/console${path}`, { ...options, headers });
+  if (res.status === 204) return undefined as T;
+  const text = await res.text();
+  let body: any = null;
+  if (text) {
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = text;
+    }
+  }
+  if (!res.ok) {
+    if (res.status === 401 && path !== '/auth') setConsoleToken(null);
+    throw new ApiError(res.status, body?.error || res.statusText || 'Request failed', body?.details);
+  }
+  return body as T;
+}
+
+const cget = <T>(p: string) => consoleRequest<T>(p);
+const cbody = <T>(method: string, p: string, b?: unknown) =>
+  consoleRequest<T>(p, { method, body: b ? JSON.stringify(b) : undefined });
+
+export interface CouponInput {
+  code: string;
+  discountPercent: number;
+  maxUses?: number | null;
+  expiresAt?: string | null;
+  note?: string;
+  active?: boolean;
+}
+
+export const consoleApi = {
+  auth: (password: string) => cbody<{ token: string }>('POST', '/auth', { password }),
+  session: () => cget<{ ok: boolean }>('/session'),
+  metrics: () => cget<ConsoleMetrics>('/metrics'),
+  users: (params: { search?: string; status?: string; plan?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.search) q.set('search', params.search);
+    if (params.status) q.set('status', params.status);
+    if (params.plan) q.set('plan', params.plan);
+    const s = q.toString();
+    return cget<{ users: ConsoleUser[] }>(`/users${s ? `?${s}` : ''}`);
+  },
+  user: (id: string) => cget<ConsoleUserDetail>(`/users/${id}`),
+  updateUser: (
+    id: string,
+    data: {
+      action?: 'ban' | 'unban' | 'grantPremium' | 'removePremium' | 'resetLimits';
+      plan?: UserPlan;
+      status?: UserStatus;
+      premiumDays?: number;
+    }
+  ) => cbody<{ user: ConsoleUser }>('PATCH', `/users/${id}`, data),
+  activity: (type?: string) => cget<{ activity: ActivityItem[] }>(`/activity${type ? `?type=${type}` : ''}`),
+  coupons: () => cget<{ coupons: Coupon[] }>('/coupons'),
+  createCoupon: (data: CouponInput) => cbody<{ coupon: Coupon }>('POST', '/coupons', data),
+  updateCoupon: (id: string, data: Partial<CouponInput>) => cbody<{ coupon: Coupon }>('PATCH', `/coupons/${id}`, data),
+  deleteCoupon: (id: string) => cbody<{ ok: boolean }>('DELETE', `/coupons/${id}`),
 };

@@ -20,6 +20,7 @@ const Exports = lazy(() => import('./pages/dashboard/Exports'));
 const Analytics = lazy(() => import('./pages/dashboard/Analytics'));
 const Settings = lazy(() => import('./pages/dashboard/Settings'));
 const Admin = lazy(() => import('./pages/dashboard/Admin'));
+const Console = lazy(() => import('./pages/Console'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 function Protected({ children, adminOnly }: { children: JSX.Element; adminOnly?: boolean }) {
@@ -45,6 +46,9 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
         <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
+
+        {/* Private owner console — password-gated, not linked in navigation. */}
+        <Route path="/users" element={<Console />} />
 
         <Route
           path="/app"
