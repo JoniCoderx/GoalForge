@@ -13,7 +13,7 @@ services:
     runtime: node
     plan: starter
     region: oregon
-    branch: claude/goalforge-ai-saas-ryhn39
+    branch: main
     # Install dev deps (needed to compile), then build server + client.
     buildCommand: npm ci --include=dev && npm run build
     # Sync the Postgres schema (creates tables on first boot) then start.
