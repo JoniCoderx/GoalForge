@@ -8,6 +8,13 @@ import type {
   ConsoleUser,
   ConsoleUserDetail,
   Coupon,
+  Expense,
+  ExpenseCategory,
+  ExpenseDashboard,
+  ExpenseFilters,
+  ExpenseInput,
+  ExpenseProject,
+  ExpenseProjectDetail,
   ExportJob,
   GeneratedContent,
   LogEntry,
@@ -21,6 +28,15 @@ import type {
 
 const TOKEN_KEY = 'goalforge_token';
 const CONSOLE_TOKEN_KEY = 'goalforge_console_token';
+const EXPENSES_TOKEN_KEY = 'goalforge_expenses_token';
+
+export function getExpensesToken(): string | null {
+  return localStorage.getItem(EXPENSES_TOKEN_KEY);
+}
+export function setExpensesToken(token: string | null) {
+  if (token) localStorage.setItem(EXPENSES_TOKEN_KEY, token);
+  else localStorage.removeItem(EXPENSES_TOKEN_KEY);
+}
 
 export function getConsoleToken(): string | null {
   return localStorage.getItem(CONSOLE_TOKEN_KEY);
@@ -192,6 +208,81 @@ export interface CouponInput {
   note?: string;
   active?: boolean;
 }
+
+/* ─────────────── Expense tracker (/expenses) — token via x-expenses-token ─────────────── */
+
+async function expensesRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = getExpensesToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+  if (token) headers['x-expenses-token'] = token;
+  const res = await fetch(`/api/expenses${path}`, { ...options, headers });
+  if (res.status === 204) return undefined as T;
+  const text = await res.text();
+  let body: any = null;
+  if (text) {
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = text;
+    }
+  }
+  if (!res.ok) {
+    if (res.status === 401 && path !== '/auth') setExpensesToken(null);
+    throw new ApiError(res.status, body?.error || res.statusText || 'Request failed', body?.details);
+  }
+  return body as T;
+}
+const eget = <T>(p: string) => expensesRequest<T>(p);
+const ebody = <T>(method: string, p: string, b?: unknown) =>
+  expensesRequest<T>(p, { method, body: b ? JSON.stringify(b) : undefined });
+
+/** Download an export (CSV/JSON) that requires the token header. */
+async function expensesDownload(path: string, filename: string): Promise<void> {
+  const token = getExpensesToken();
+  const res = await fetch(`/api/expenses${path}`, { headers: token ? { 'x-expenses-token': token } : {} });
+  if (!res.ok) throw new ApiError(res.status, 'Export failed');
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+export const expensesApi = {
+  auth: (password: string) => ebody<{ token: string }>('POST', '/auth', { password }),
+  session: () => eget<{ ok: boolean }>('/session'),
+  dashboard: () => eget<ExpenseDashboard>('/dashboard'),
+  categories: () => eget<{ categories: ExpenseCategory[] }>('/categories'),
+  createCategory: (name: string) => ebody<{ category: ExpenseCategory }>('POST', '/categories', { name }),
+  projects: (includeArchived = false) =>
+    eget<{ projects: ExpenseProject[] }>(`/projects${includeArchived ? '?archived=true' : ''}`),
+  project: (id: string) => eget<ExpenseProjectDetail>(`/projects/${id}`),
+  createProject: (data: { name: string; notes?: string }) => ebody<{ project: ExpenseProject }>('POST', '/projects', data),
+  updateProject: (id: string, data: { name?: string; notes?: string; archived?: boolean }) =>
+    ebody<{ project: ExpenseProject }>('PATCH', `/projects/${id}`, data),
+  deleteProject: (id: string) => ebody<{ ok: boolean }>('DELETE', `/projects/${id}`),
+  expenses: (filters: ExpenseFilters = {}) => {
+    const q = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v) q.set(k, v);
+    });
+    const s = q.toString();
+    return eget<{ expenses: Expense[] }>(`/expenses${s ? `?${s}` : ''}`);
+  },
+  createExpense: (data: ExpenseInput) => ebody<{ expense: Expense }>('POST', '/expenses', data),
+  updateExpense: (id: string, data: Partial<ExpenseInput>) => ebody<{ expense: Expense }>('PATCH', `/expenses/${id}`, data),
+  deleteExpense: (id: string) => ebody<{ ok: boolean }>('DELETE', `/expenses/${id}`),
+  exportCsv: () => expensesDownload('/export.csv', 'expenses.csv'),
+  exportJson: () => expensesDownload('/export.json', 'expenses-backup.json'),
+  importCsv: (csv: string) => ebody<{ imported: number; errors: string[]; total: number }>('POST', '/import', { csv }),
+};
 
 export const consoleApi = {
   auth: (password: string) => cbody<{ token: string }>('POST', '/auth', { password }),

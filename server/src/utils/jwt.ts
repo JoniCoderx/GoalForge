@@ -30,3 +30,17 @@ export function verifyConsoleToken(token: string): boolean {
     return false;
   }
 }
+
+/** Expense-tracker session token, obtained by entering the expenses password. */
+export function signExpensesToken(): string {
+  return jwt.sign({ scope: 'expenses' }, env.jwtSecret, { expiresIn: '12h' });
+}
+
+export function verifyExpensesToken(token: string): boolean {
+  try {
+    const payload = jwt.verify(token, env.jwtSecret) as { scope?: string };
+    return payload.scope === 'expenses';
+  } catch {
+    return false;
+  }
+}

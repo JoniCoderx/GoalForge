@@ -9,6 +9,7 @@ import exportRoutes from './export.routes.js';
 import analyticsRoutes from './analytics.routes.js';
 import adminRoutes from './admin.routes.js';
 import consoleRoutes from './console.routes.js';
+import expensesRoutes from './expenses.routes.js';
 import { openaiStatus } from '../services/openai.service.js';
 
 const router = Router();
@@ -27,5 +28,6 @@ router.use('/exports', exportRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/admin', adminRoutes);
 router.use('/console', consoleRoutes);
+router.use('/expenses', expensesRoutes);
 
 export default router;

@@ -38,6 +38,19 @@ export async function bootstrap(): Promise<void> {
       });
     }
 
+    // Default expense categories for the internal tracker.
+    const DEFAULT_CATEGORIES = [
+      'Development', 'Design', 'Marketing', 'Ads', 'Software / SaaS', 'Hosting',
+      'Domain', 'Legal', 'Accounting', 'Team / Contractors', 'Travel', 'Office', 'Other',
+    ];
+    for (const name of DEFAULT_CATEGORIES) {
+      await prisma.expenseCategory.upsert({
+        where: { name },
+        update: {},
+        create: { name, isDefault: true },
+      });
+    }
+
     // Optionally provision an admin account when explicit credentials are set.
     const adminEmail = process.env.ADMIN_EMAIL;
     const adminPassword = process.env.ADMIN_PASSWORD;

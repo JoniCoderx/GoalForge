@@ -224,3 +224,121 @@ export interface Coupon {
   createdAt: string;
   updatedAt: string;
 }
+
+/* ─────────────── Expense tracker (/expenses) ─────────────── */
+
+export type ExpenseStatus = 'paid' | 'pending' | 'cancelled';
+export type RecurringFrequency = 'monthly' | 'yearly' | 'weekly' | 'custom';
+
+export interface ExpenseCategory {
+  id: string;
+  name: string;
+  isDefault: boolean;
+}
+
+export interface ExpenseProject {
+  id: string;
+  name: string;
+  notes: string;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+  expenseCount: number;
+  currency: string;
+  totalSpent: number;
+  oneTime: number;
+  monthlyRecurring: number;
+  yearlyRecurring: number;
+  pending: number;
+}
+
+export interface Expense {
+  id: string;
+  projectId: string;
+  title: string;
+  category: string;
+  vendor: string;
+  paymentMethod: string;
+  amount: number;
+  currency: string;
+  datePaid: string;
+  isRecurring: boolean;
+  recurringFrequency: RecurringFrequency | null;
+  nextPaymentDate: string | null;
+  status: ExpenseStatus;
+  notes: string;
+  addedBy: string;
+  createdAt: string;
+  updatedAt: string;
+  project?: { name: string };
+}
+
+export interface ExpenseDashboard {
+  baseCurrency: string;
+  currencies: string[];
+  totals: {
+    totalSpent: number;
+    monthlyRecurring: number;
+    yearlyRecurring: number;
+    pending: number;
+    oneTime: number;
+    projectCount: number;
+    expenseCount: number;
+  };
+  byProject: Record<string, number>;
+  byCategory: Record<string, number>;
+  upcoming: {
+    id: string;
+    title: string;
+    project: string;
+    amount: number;
+    currency: string;
+    frequency: RecurringFrequency | null;
+    nextPaymentDate: string;
+    overdue: boolean;
+  }[];
+  recent: {
+    id: string;
+    title: string;
+    project: string;
+    category: string;
+    amount: number;
+    currency: string;
+    status: ExpenseStatus;
+    datePaid: string;
+  }[];
+}
+
+export interface ExpenseProjectDetail {
+  project: ExpenseProject;
+  expenses: Expense[];
+  byCategory: Record<string, number>;
+  byPaymentMethod: Record<string, number>;
+}
+
+export interface ExpenseFilters {
+  search?: string;
+  projectId?: string;
+  category?: string;
+  status?: string;
+  recurring?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface ExpenseInput {
+  projectId: string;
+  title: string;
+  category: string;
+  vendor?: string;
+  paymentMethod?: string;
+  amount: number;
+  currency: string;
+  datePaid: string;
+  isRecurring: boolean;
+  recurringFrequency?: RecurringFrequency | null;
+  nextPaymentDate?: string | null;
+  status: ExpenseStatus;
+  notes?: string;
+  addedBy?: string;
+}

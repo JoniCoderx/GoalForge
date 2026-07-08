@@ -21,6 +21,7 @@ const Analytics = lazy(() => import('./pages/dashboard/Analytics'));
 const Settings = lazy(() => import('./pages/dashboard/Settings'));
 const Admin = lazy(() => import('./pages/dashboard/Admin'));
 const Console = lazy(() => import('./pages/Console'));
+const Expenses = lazy(() => import('./pages/Expenses'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 function Protected({ children, adminOnly }: { children: JSX.Element; adminOnly?: boolean }) {
@@ -49,6 +50,9 @@ export default function App() {
 
         {/* Private owner console — password-gated, not linked in navigation. */}
         <Route path="/users" element={<Console />} />
+
+        {/* Internal expense tracker — password-gated, isolated from the app. */}
+        <Route path="/expenses" element={<Expenses />} />
 
         <Route
           path="/app"

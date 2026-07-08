@@ -40,6 +40,9 @@ services:
       # Password for the private owner console at /users (change from the default).
       - key: SUPERADMIN_PASSWORD
         sync: false
+      # Password for the internal expense tracker at /expenses (change from default).
+      - key: EXPENSES_PASSWORD
+        sync: false
       - key: NODE_VERSION
         value: "22"
 

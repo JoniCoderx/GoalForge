@@ -192,3 +192,52 @@ model Coupon {
 
   @@index([active])
 }
+
+// ─────────────── Internal expense tracker (/expenses) ───────────────
+
+model ExpenseProject {
+  id        String   @id @default(cuid())
+  name      String
+  notes     String   @default("")
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  expenses Expense[]
+
+  @@index([archived])
+}
+
+model Expense {
+  id                 String    @id @default(cuid())
+  projectId          String
+  title              String
+  category           String    @default("Other")
+  vendor             String    @default("")
+  paymentMethod      String    @default("")
+  amount             Float
+  currency           String    @default("USD")
+  datePaid           DateTime
+  isRecurring        Boolean   @default(false)
+  recurringFrequency String?   // monthly | yearly | weekly | custom
+  nextPaymentDate    DateTime?
+  status             String    @default("paid") // paid | pending | cancelled
+  notes              String    @default("")
+  addedBy            String    @default("")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  project ExpenseProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([status])
+  @@index([category])
+  @@index([isRecurring])
+}
+
+model ExpenseCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+}

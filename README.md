@@ -140,6 +140,22 @@ coupons, watch a live activity feed (logins, generations, renders, errors), and
 see platform metrics (users, premium, banned, videos, exports, daily signups &
 renders).
 
+### Expense tracker (`/expenses`)
+
+A separate, password-gated internal tool at **`/expenses`** (not linked in any
+navigation) for tracking team spend across projects. Enter the
+`EXPENSES_PASSWORD` (default `123456`) to unlock — the same token authorizes
+both viewing and editing, and every `/api/expenses/*` endpoint requires it on
+the backend. Features: multiple projects with per-project totals (spent,
+one-time, monthly & yearly recurring, pending); detailed expense entries
+(category, vendor, payment method, amount/currency, recurring frequency & next
+payment date, status, notes, added-by); default + custom categories; a
+dashboard (total spent, monthly/yearly recurring, pending, cost per project &
+category, upcoming recurring payments, recent expenses); search + filters
+(project/category/status/recurring/date range); and CSV/JSON export plus CSV
+import. Data lives in `ExpenseProject`, `Expense` and `ExpenseCategory` tables
+(created automatically by `prisma db push` on deploy).
+
 ### Why these exact commands?
 
 - **`npm ci --include=dev`** — Render sets `NODE_ENV=production`, which makes a plain
