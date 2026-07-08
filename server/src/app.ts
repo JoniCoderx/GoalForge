@@ -87,10 +87,14 @@ export function createApp(): Express {
   app.use('/api/ai', aiLimiter);
   app.use('/api/videos/generate', aiLimiter);
 
-  // Broad limiter across the whole API surface.
+  // Broad abuse limiter across the whole API surface. This must be generous
+  // enough for a normal dashboard session: the app legitimately polls status
+  // endpoints (export queue, render progress) every couple of seconds, so a
+  // low ceiling here would 429 real users. The sensitive/expensive endpoints
+  // (auth, AI generation) are protected by the strict limiters above.
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: env.isProd ? 600 : 5000,
+    max: env.isProd ? 5000 : 20000,
     standardHeaders: true,
     legacyHeaders: false,
     message: jsonMessage('Too many requests. Please try again later.'),

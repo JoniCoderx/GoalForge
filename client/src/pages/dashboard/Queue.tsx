@@ -21,7 +21,13 @@ export default function Queue() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['queue'],
     queryFn: api.exports.queue,
-    refetchInterval: 1500,
+    // Poll only while there is something rendering; go idle when the queue is
+    // empty so we don't hammer the API (and trip rate limits) doing nothing.
+    refetchInterval: (query) => {
+      const jobs = query.state.data?.jobs ?? [];
+      return jobs.length > 0 ? 2500 : false;
+    },
+    refetchIntervalInBackground: false,
   });
 
   const jobs = data?.jobs ?? [];
