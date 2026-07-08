@@ -1,0 +1,47 @@
+# GoalForge AI — Render blueprint (Infrastructure as Code)
+#
+# The web service + PostgreSQL can also be created manually in the Render
+# dashboard; this file documents the exact, working configuration. If you use
+# "New > Blueprint" and point it at this repo, Render provisions everything.
+#
+# KEY DETAIL: because NODE_ENV=production is set, a plain `npm install` would
+# skip devDependencies (tsc, vite, prisma CLI) and the build would fail. The
+# build command below uses `--include=dev` to install them for the build step.
+services:
+  - type: web
+    name: goalforge-ai
+    runtime: node
+    plan: starter
+    region: oregon
+    branch: claude/goalforge-ai-saas-ryhn39
+    # Install dev deps (needed to compile), then build server + client.
+    buildCommand: npm ci --include=dev && npm run build
+    # Sync the Postgres schema (creates tables on first boot) then start.
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Ensures Prisma uses the PostgreSQL provider at build & runtime.
+      - key: DATABASE_PROVIDER
+        value: postgresql
+      - key: DATABASE_URL
+        fromDatabase:
+          name: goalforge-db
+          property: connectionString
+      # Set these two in the Render dashboard (Environment tab):
+      - key: JWT_SECRET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: NODE_VERSION
+        value: "22"
+
+databases:
+  - name: goalforge-db
+    plan: basic-256mb
+    region: oregon
+    postgresMajorVersion: "16"
