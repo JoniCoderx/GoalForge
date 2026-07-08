@@ -12,7 +12,10 @@ const reset = '\x1b[0m';
 function stamp(level: Level, message: string, context?: unknown) {
   const time = new Date().toISOString();
   const ctx = context ? ` ${JSON.stringify(context)}` : '';
-  console.log(`${colors[level]}[${level.toUpperCase()}]${reset} ${time} ${message}${ctx}`);
+  const line = `${colors[level]}[${level.toUpperCase()}]${reset} ${time} ${message}${ctx}`;
+  // Route warn/error to stderr so log processors and alerting pick them up.
+  if (level === 'error' || level === 'warn') console.error(line);
+  else console.log(line);
 }
 
 /** Persist a log line to the database (best-effort) and echo to stdout. */

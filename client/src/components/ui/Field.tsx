@@ -21,7 +21,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       )}
       <input ref={ref} id={inputId} className={cn('input', error && 'border-rose-500/60', className)} {...props} />
       {error ? (
-        <p className="mt-1.5 text-xs text-rose-400">{error}</p>
+        <p role="alert" className="mt-1.5 text-xs text-rose-400">
+          {error}
+        </p>
       ) : hint ? (
         <p className="mt-1.5 text-xs text-slate-500">{hint}</p>
       ) : null}

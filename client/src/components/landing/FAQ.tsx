@@ -44,7 +44,11 @@ export function FAQ() {
           {faqs.map((f, i) => (
             <div key={i} className="card overflow-hidden p-0">
               <button
+                type="button"
                 onClick={() => setOpen(open === i ? -1 : i)}
+                aria-expanded={open === i}
+                aria-controls={`faq-panel-${i}`}
+                id={`faq-trigger-${i}`}
                 className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
               >
                 <span className="font-medium text-white">{f.q}</span>
@@ -55,6 +59,9 @@ export function FAQ() {
               <AnimatePresence initial={false}>
                 {open === i && (
                   <motion.div
+                    id={`faq-panel-${i}`}
+                    role="region"
+                    aria-labelledby={`faq-trigger-${i}`}
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}

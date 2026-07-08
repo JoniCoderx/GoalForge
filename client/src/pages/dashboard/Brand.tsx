@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { Palette, Save, RotateCcw, ImageUp, Film, Lock } from 'lucide-react';
+import { Palette, Save, RotateCcw, ImageUp, Film, Lock, AlertTriangle } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { BrandSettings } from '@/lib/types';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Field';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { cn } from '@/lib/utils';
 
 /* ─────────────────────────── Toggle switch ─────────────────────────── */
@@ -224,13 +225,23 @@ function ComingSoonDrop({ label, icon }: { label: string; icon: React.ReactNode 
 
 export default function Brand() {
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ['brand'], queryFn: api.brand.get });
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['brand'],
+    queryFn: api.brand.get,
+    refetchOnWindowFocus: false,
+  });
   const brand = data?.brand ?? null;
 
   const [form, setForm] = useState<BrandForm | null>(null);
+  const loadedId = useRef<string | null>(null);
 
+  // Initialize the form only once per brand record — a background refetch that
+  // returns the same record must not wipe the user's unsaved edits.
   useEffect(() => {
-    if (brand) setForm(pickForm(brand));
+    if (brand && loadedId.current !== brand.id) {
+      loadedId.current = brand.id;
+      setForm(pickForm(brand));
+    }
   }, [brand]);
 
   const dirty = useMemo(
@@ -292,7 +303,14 @@ export default function Brand() {
         }
       />
 
-      {isLoading || !form ? (
+      {isError ? (
+        <EmptyState
+          icon={<AlertTriangle className="h-7 w-7" />}
+          title="Couldn't load brand settings"
+          description="Something went wrong reaching your brand configuration. Please try again."
+          action={<Button onClick={() => refetch()}>Retry</Button>}
+        />
+      ) : isLoading || !form ? (
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
           <div className="space-y-5">
             <Skeleton className="h-64 rounded-2xl" />

@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { SlidersHorizontal, Save, RotateCcw, Info, FileText, AlertTriangle } from 'lucide-react';
+import { SlidersHorizontal, Save, RotateCcw, Info, FileText, AlertTriangle, Lock } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useAuth } from '@/store/auth';
 import type { Prompt } from '@/lib/types';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -14,7 +15,13 @@ import { cn } from '@/lib/utils';
 
 export default function Prompts() {
   const qc = useQueryClient();
-  const { data, isLoading, isError } = useQuery({ queryKey: ['prompts'], queryFn: api.prompts.list });
+  const { user } = useAuth();
+  const canEdit = user?.role === 'ADMIN';
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['prompts'],
+    queryFn: api.prompts.list,
+    refetchOnWindowFocus: false,
+  });
   const prompts = useMemo(() => data?.prompts ?? [], [data]);
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -33,10 +40,13 @@ export default function Prompts() {
     }
   }, [prompts, selectedKey]);
 
-  // Sync editor content whenever the selected prompt changes.
+  // Sync editor content only when the SELECTED KEY changes, so a background
+  // refetch (new object identity) never clobbers unsaved edits.
   useEffect(() => {
-    if (selected) setContent(selected.content);
-  }, [selected]);
+    const p = prompts.find((x) => x.key === selectedKey);
+    if (p) setContent(p.content);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedKey]);
 
   const dirty = selected !== null && content !== selected.content;
 
@@ -165,14 +175,16 @@ export default function Prompts() {
                       {selected.key}
                     </code>
                   </div>
-                  <div className="flex shrink-0 gap-2">
-                    <Button variant="ghost" onClick={reset} disabled={!dirty || mutation.isPending}>
-                      <RotateCcw className="h-4 w-4" /> Reset
-                    </Button>
-                    <Button onClick={save} loading={mutation.isPending} disabled={!dirty}>
-                      <Save className="h-4 w-4" /> {dirty ? 'Save' : 'Saved'}
-                    </Button>
-                  </div>
+                  {canEdit && (
+                    <div className="flex shrink-0 gap-2">
+                      <Button variant="ghost" onClick={reset} disabled={!dirty || mutation.isPending}>
+                        <RotateCcw className="h-4 w-4" /> Reset
+                      </Button>
+                      <Button onClick={save} loading={mutation.isPending} disabled={!dirty}>
+                        <Save className="h-4 w-4" /> {dirty ? 'Save' : 'Saved'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-6">
@@ -182,11 +194,19 @@ export default function Prompts() {
                     onChange={(e) => setContent(e.target.value)}
                     rows={16}
                     spellCheck={false}
+                    readOnly={!canEdit}
                     className="min-h-[320px] font-mono text-sm leading-relaxed"
                   />
-                  <p className="mt-2 text-xs text-slate-500">
-                    {dirty ? 'Unsaved changes' : 'No changes'} · {content.length.toLocaleString()} characters
-                  </p>
+                  {canEdit ? (
+                    <p className="mt-2 text-xs text-slate-500">
+                      {dirty ? 'Unsaved changes' : 'No changes'} · {content.length.toLocaleString()} characters
+                    </p>
+                  ) : (
+                    <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+                      <Lock className="h-3.5 w-3.5" />
+                      System prompts are managed by admins.
+                    </p>
+                  )}
                 </div>
               </motion.div>
             ) : (

@@ -132,7 +132,12 @@ export function DashboardLayout() {
             >
               <div className="flex h-16 items-center justify-between px-5">
                 <Logo />
-                <button onClick={() => setMobileOpen(false)} className="btn-ghost rounded-lg p-1.5">
+                <button
+                  type="button"
+                  onClick={() => setMobileOpen(false)}
+                  className="btn-ghost rounded-lg p-1.5"
+                  aria-label="Close menu"
+                >
                   <X className="h-5 w-5" />
                 </button>
               </div>

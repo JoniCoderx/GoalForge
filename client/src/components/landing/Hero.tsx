@@ -18,6 +18,8 @@ export function Hero() {
   const [idx, setIdx] = useState(0);
 
   useEffect(() => {
+    // Respect the user's reduced-motion preference — skip the intro reveals entirely.
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const ctx = gsap.context(() => {
       gsap.from('.hero-reveal', {
         y: 28,

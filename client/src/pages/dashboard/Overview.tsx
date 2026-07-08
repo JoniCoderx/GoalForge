@@ -1,17 +1,7 @@
-import { useMemo, type ReactNode } from 'react';
+import { lazy, Suspense, useMemo, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-  type TooltipProps,
-} from 'recharts';
 import {
   Film,
   CheckCircle2,
@@ -22,6 +12,7 @@ import {
   Palette,
   ArrowRight,
   TrendingUp,
+  AlertTriangle,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/store/auth';
@@ -30,23 +21,9 @@ import { VideoCard } from '@/components/dashboard/VideoCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { formatNumber } from '@/lib/utils';
 
-function ChartTooltip({ active, payload, label }: TooltipProps<number, string>) {
-  if (!active || !payload || !payload.length) return null;
-  return (
-    <div className="rounded-xl border border-white/10 bg-ink-900/90 px-3 py-2 text-xs shadow-card backdrop-blur-xl">
-      <p className="mb-1 font-medium text-slate-300">{label}</p>
-      {payload.map((p) => (
-        <p key={String(p.name)} className="flex items-center gap-2 text-white">
-          <span className="inline-block h-2 w-2 rounded-full" style={{ background: p.color }} />
-          <span className="text-slate-400">{p.name}</span>
-          <span className="font-semibold">{formatNumber(Number(p.value ?? 0))}</span>
-        </p>
-      ))}
-    </div>
-  );
-}
+// Defer the recharts bundle so the stat cards paint before the chart chunk loads.
+const ViewsChart = lazy(() => import('@/components/dashboard/ViewsChart'));
 
 const dayLabel = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -56,14 +33,26 @@ export default function Overview() {
   const navigate = useNavigate();
   const firstName = user?.name?.split(' ')[0] || 'there';
 
-  const { data: overview, isLoading: loadingOverview } = useQuery({
+  const {
+    data: overview,
+    isLoading: loadingOverview,
+    isError: overviewError,
+    refetch: refetchOverview,
+  } = useQuery({
     queryKey: ['analytics', 'overview'],
     queryFn: api.analytics.overview,
   });
-  const { data: videosData, isLoading: loadingVideos } = useQuery({
+  const {
+    data: videosData,
+    isLoading: loadingVideos,
+    isError: videosError,
+    refetch: refetchVideos,
+  } = useQuery({
     queryKey: ['videos'],
     queryFn: () => api.videos.list(),
   });
+
+  const hasError = overviewError || videosError;
 
   const totals = overview?.totals;
   const videos = useMemo(() => videosData?.videos ?? [], [videosData]);
@@ -100,6 +89,24 @@ export default function Overview() {
         </h1>
       </motion.div>
 
+      {hasError ? (
+        <EmptyState
+          icon={<AlertTriangle className="h-7 w-7" />}
+          title="Couldn't load your dashboard"
+          description="Something went wrong fetching your metrics and videos. Please try again."
+          action={
+            <Button
+              onClick={() => {
+                refetchOverview();
+                refetchVideos();
+              }}
+            >
+              Retry
+            </Button>
+          }
+        />
+      ) : (
+        <>
       {/* Metrics */}
       {loadingOverview ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -157,40 +164,11 @@ export default function Overview() {
           {loadingOverview ? (
             <Skeleton className="h-[240px] w-full rounded-xl" />
           ) : hasChart ? (
-            <ResponsiveContainer width="100%" height={240}>
-              <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="ovViews" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#22c55e" stopOpacity={0.45} />
-                    <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
-                <XAxis
-                  dataKey="date"
-                  tick={{ fill: '#64748b', fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  tick={{ fill: '#64748b', fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={40}
-                  tickFormatter={(v) => formatNumber(Number(v))}
-                />
-                <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)' }} />
-                <Area
-                  type="monotone"
-                  dataKey="Views"
-                  stroke="#22c55e"
-                  strokeWidth={2}
-                  fill="url(#ovViews)"
-                  dot={false}
-                  activeDot={{ r: 4, fill: '#22c55e' }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            <div className="h-[240px] w-full">
+              <Suspense fallback={<Skeleton className="h-full w-full rounded-xl" />}>
+                <ViewsChart data={chartData} />
+              </Suspense>
+            </div>
           ) : (
             <div className="grid h-[240px] place-items-center text-center text-sm text-slate-500">
               No view data yet — export a video to start tracking.
@@ -258,6 +236,8 @@ export default function Overview() {
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }

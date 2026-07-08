@@ -120,9 +120,10 @@ built React client) plus a **PostgreSQL** instance. You can deploy via the
 | `NODE_ENV`          | `production` |
 | `DATABASE_URL`      | your Render PostgreSQL **Internal Connection String** |
 | `DATABASE_PROVIDER` | `postgresql` |
-| `JWT_SECRET`        | a long random string |
+| `JWT_SECRET`        | a long random string — **required**; the server refuses to boot in production with a weak/default one (`openssl rand -hex 32`) |
 | `OPENAI_API_KEY`    | your OpenAI key (optional but recommended) |
 | `OPENAI_MODEL`      | `gpt-4o-mini` (default) |
+| `CORS_ORIGINS`      | optional, comma-separated extra origins for your custom domain, e.g. `https://goalforge.top` (same-origin needs nothing) |
 | `NODE_VERSION`      | `22` |
 
 ### Why these exact commands?

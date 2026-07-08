@@ -6,33 +6,44 @@ import { requireAuth } from '../middleware/auth.js';
 const router = Router();
 router.use(requireAuth);
 
-/** Aggregate dashboard analytics (placeholders + real counts). */
+/** Aggregate dashboard analytics — computed in the database, not by loading rows. */
 router.get(
   '/overview',
   asyncHandler(async (req, res) => {
     const userId = req.user!.sub;
-    const [videos, ready, jobs] = await Promise.all([
-      prisma.video.findMany({ where: { userId } }),
+    const since = new Date();
+    since.setDate(since.getDate() - 13);
+    since.setHours(0, 0, 0, 0);
+
+    const [total, ready, jobs, sums, grouped, recent] = await Promise.all([
+      prisma.video.count({ where: { userId } }),
       prisma.video.count({ where: { userId, status: 'READY' } }),
       prisma.exportJob.count({ where: { userId } }),
+      prisma.video.aggregate({ where: { userId }, _sum: { views: true, likes: true, shares: true } }),
+      prisma.video.groupBy({ by: ['templateKey'], where: { userId }, _count: { _all: true } }),
+      // Only the last 14 days of rows are needed for the timeline chart.
+      prisma.video.findMany({
+        where: { userId, createdAt: { gte: since } },
+        select: { createdAt: true, views: true },
+        take: 5000,
+      }),
     ]);
 
-    const totalViews = videos.reduce((a, v) => a + v.views, 0);
-    const totalLikes = videos.reduce((a, v) => a + v.likes, 0);
-    const totalShares = videos.reduce((a, v) => a + v.shares, 0);
+    const totalViews = sums._sum.views ?? 0;
+    const totalLikes = sums._sum.likes ?? 0;
+    const totalShares = sums._sum.shares ?? 0;
 
-    // Group counts by template for the chart.
     const byTemplate: Record<string, number> = {};
-    for (const v of videos) byTemplate[v.templateKey] = (byTemplate[v.templateKey] ?? 0) + 1;
+    for (const g of grouped) byTemplate[g.templateKey] = g._count._all;
 
-    // Build a 14-day timeline of created videos.
+    // Build a 14-day timeline from the bounded recent set.
     const days: { date: string; count: number; views: number }[] = [];
     const now = new Date();
     for (let i = 13; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(now.getDate() - i);
       const key = d.toISOString().slice(0, 10);
-      const dayVideos = videos.filter((v) => v.createdAt.toISOString().slice(0, 10) === key);
+      const dayVideos = recent.filter((v) => v.createdAt.toISOString().slice(0, 10) === key);
       days.push({
         date: key,
         count: dayVideos.length,
@@ -44,7 +55,7 @@ router.get(
 
     res.json({
       totals: {
-        videos: videos.length,
+        videos: total,
         ready,
         exports: jobs,
         views: totalViews,

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { Settings as SettingsIcon, Mail, PlayCircle, Sparkles, LogOut, ShieldAlert } from 'lucide-react';
+import { Settings as SettingsIcon, Mail, PlayCircle, LogOut, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/store/auth';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -65,14 +65,12 @@ function Toggle({
 interface Prefs {
   emailOnRender: boolean;
   autoplayPreviews: boolean;
-  reducedMotion: boolean;
 }
 
 const PREFS_KEY = 'goalforge_prefs';
 const DEFAULT_PREFS: Prefs = {
   emailOnRender: true,
   autoplayPreviews: true,
-  reducedMotion: false,
 };
 
 function loadPrefs(): Prefs {
@@ -174,22 +172,13 @@ export default function Settings() {
                   icon={<Mail className="h-4 w-4" />}
                 />
               </div>
-              <div className="py-4">
+              <div className="pt-4">
                 <Toggle
                   checked={prefs.autoplayPreviews}
                   onChange={(v) => setPref('autoplayPreviews', v)}
                   label="Autoplay previews"
                   description="Play video previews automatically as you browse."
                   icon={<PlayCircle className="h-4 w-4" />}
-                />
-              </div>
-              <div className="pt-4">
-                <Toggle
-                  checked={prefs.reducedMotion}
-                  onChange={(v) => setPref('reducedMotion', v)}
-                  label="Calmer motion"
-                  description="Tone down animated flourishes across the dashboard."
-                  icon={<Sparkles className="h-4 w-4" />}
                 />
               </div>
             </div>

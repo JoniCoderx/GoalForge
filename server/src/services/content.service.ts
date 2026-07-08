@@ -275,16 +275,3 @@ Return JSON with this exact shape:
   }
   return { content: localGenerate(template, topic), source: 'local' };
 }
-
-/** Regenerate a single field (used by inline "regenerate" buttons). */
-export async function regenerateField(
-  template: Template,
-  field: keyof GeneratedContent,
-  topic: string,
-  context: string
-): Promise<string | string[]> {
-  const full = await generateContent(template, { topic });
-  const value = full.content[field];
-  void context;
-  return value as string | string[];
-}

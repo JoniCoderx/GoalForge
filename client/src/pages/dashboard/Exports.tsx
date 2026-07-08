@@ -157,13 +157,13 @@ function ExportRow({ job }: { job: ExportJob }) {
             <StatusBadge status={job.status} />
           </div>
           <div className="hidden w-16 text-right text-xs text-slate-400 sm:block">
-            <span className="block text-[10px] uppercase tracking-wide text-slate-600">
+            <span className="block text-[10px] uppercase tracking-wide text-slate-400">
               Duration
             </span>
             <span className="font-mono tabular-nums">{jobDuration(job)}</span>
           </div>
           <div className="w-20 text-right text-xs text-slate-400">
-            <span className="block text-[10px] uppercase tracking-wide text-slate-600">
+            <span className="block text-[10px] uppercase tracking-wide text-slate-400">
               Created
             </span>
             {formatRelative(job.createdAt)}

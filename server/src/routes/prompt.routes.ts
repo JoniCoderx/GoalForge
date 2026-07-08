@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { asyncHandler, notFound } from '../utils/http.js';
 import { validateBody } from '../middleware/validate.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -20,9 +20,13 @@ const updateSchema = z.object({
   content: z.string().min(1).max(4000),
 });
 
-/** Users can tune the editable prompts that drive their generations. */
+/**
+ * System prompts are global (shared across all users), so only admins may edit
+ * them — otherwise one user's change would alter everyone's AI generations.
+ */
 router.put(
   '/:key',
+  requireAdmin,
   validateBody(updateSchema),
   asyncHandler(async (req, res) => {
     const prompt = await prisma.prompt.findUnique({ where: { key: req.params.key } });

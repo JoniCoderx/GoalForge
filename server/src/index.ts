@@ -1,10 +1,15 @@
+import { promisify } from 'node:util';
 import { createApp } from './app.js';
-import { env } from './config/env.js';
+import { env, assertProductionSafety } from './config/env.js';
 import { logger } from './lib/logger.js';
 import { prisma } from './lib/prisma.js';
 import { bootstrap } from './services/bootstrap.js';
+import { recoverOrphanedJobs } from './services/render.service.js';
 
 async function main() {
+  // Fail fast on insecure production configuration (e.g. missing JWT_SECRET).
+  assertProductionSafety();
+
   const app = createApp();
 
   // Verify DB connectivity early with a clear error if misconfigured.
@@ -12,6 +17,8 @@ async function main() {
     await prisma.$queryRaw`SELECT 1`;
     // Idempotently seed templates/prompts (and admin) so a fresh prod DB works out of the box.
     await bootstrap();
+    // Fail out any renders left mid-flight by a previous restart.
+    await recoverOrphanedJobs();
   } catch (err) {
     logger.error('Database connection failed', {
       message: err instanceof Error ? err.message : String(err),
@@ -25,9 +32,16 @@ async function main() {
     });
   });
 
+  let shuttingDown = false;
   const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     logger.info(`Received ${signal}, shutting down gracefully`);
-    server.close();
+    try {
+      await promisify(server.close.bind(server))();
+    } catch {
+      /* already closed */
+    }
     await prisma.$disconnect();
     process.exit(0);
   };

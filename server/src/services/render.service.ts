@@ -13,6 +13,29 @@ import type { Scene } from '../types/content.js';
 const queue: string[] = [];
 let running = false;
 
+/**
+ * On boot, reconcile jobs left mid-flight by a previous process. Any job still
+ * QUEUED/RENDERING (and its video) is marked FAILED so the UI never shows a
+ * render that will never complete. Safe to call on every startup.
+ */
+export async function recoverOrphanedJobs(): Promise<void> {
+  const orphaned = await prisma.exportJob.findMany({
+    where: { status: { in: ['QUEUED', 'RENDERING'] } },
+    select: { id: true, videoId: true },
+  });
+  if (orphaned.length === 0) return;
+  const message = 'Render interrupted by a server restart. Please export again.';
+  await prisma.exportJob.updateMany({
+    where: { id: { in: orphaned.map((j) => j.id) } },
+    data: { status: 'FAILED', error: message, finishedAt: new Date() },
+  });
+  await prisma.video.updateMany({
+    where: { id: { in: orphaned.map((j) => j.videoId) }, status: { in: ['QUEUED', 'RENDERING'] } },
+    data: { status: 'FAILED', error: message },
+  });
+  logger.warn(`Recovered ${orphaned.length} orphaned render job(s) on startup`);
+}
+
 export async function enqueueRender(videoId: string, userId: string): Promise<string> {
   const job = await prisma.exportJob.create({
     data: { videoId, userId, status: 'QUEUED', progress: 0, stage: 'queued' },

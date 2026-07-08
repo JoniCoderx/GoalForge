@@ -27,7 +27,10 @@ export default defineConfig({
       output: {
         manualChunks: {
           react: ['react', 'react-dom', 'react-router-dom'],
-          motion: ['framer-motion', 'gsap'],
+          motion: ['framer-motion'],
+          // gsap is only used on the landing page — keep it out of the shared
+          // dashboard motion chunk so logged-in users never download it.
+          gsap: ['gsap'],
           charts: ['recharts'],
           query: ['@tanstack/react-query'],
         },

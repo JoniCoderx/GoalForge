@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { Sparkles, Wand2, Rocket, Save, ChevronLeft, X, Plus } from 'lucide-react';
+import { Sparkles, Wand2, Rocket, Save, ChevronLeft, X, Plus, AlertTriangle } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Template, Video, Scene } from '@/lib/types';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Field';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { PhoneMock } from '@/components/landing/PhoneMock';
 import { cn } from '@/lib/utils';
 
@@ -18,7 +19,10 @@ export default function Create() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
-  const { data, isLoading } = useQuery({ queryKey: ['templates'], queryFn: api.templates.list });
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['templates'],
+    queryFn: api.templates.list,
+  });
   const templates = data?.templates ?? [];
 
   const [selected, setSelected] = useState<Template | null>(null);
@@ -76,6 +80,13 @@ export default function Create() {
             <Skeleton key={i} className="h-28 rounded-2xl" />
           ))}
         </div>
+      ) : isError ? (
+        <EmptyState
+          icon={<AlertTriangle className="h-7 w-7" />}
+          title="Couldn't load templates"
+          description="Something went wrong reaching the template library. Please try again."
+          action={<Button onClick={() => refetch()}>Retry</Button>}
+        />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {templates.map((t, i) => (
@@ -135,7 +146,7 @@ export default function Create() {
                   <Input label="Audience (optional)" placeholder="TikTok fans 16-30" value={audience} onChange={(e) => setAudience(e.target.value)} />
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="ghost" onClick={() => setSelected(null)}>
+                  <Button variant="ghost" aria-label="Clear selected template" onClick={() => setSelected(null)}>
                     <X className="h-4 w-4" />
                   </Button>
                   <Button size="lg" loading={generating} onClick={generate}>
@@ -258,9 +269,18 @@ function Editor({ video, onBack, onChange }: { video: Video; onBack: () => void;
               {draft.scenes.map((s, i) => (
                 <div
                   key={i}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Preview scene ${i + 1}`}
                   onClick={() => setPreviewIdx(i)}
+                  onKeyDown={(e) => {
+                    if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault();
+                      setPreviewIdx(i);
+                    }
+                  }}
                   className={cn(
-                    'cursor-pointer rounded-xl border p-4 transition',
+                    'cursor-pointer rounded-xl border p-4 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/40',
                     previewIdx === i ? 'border-brand-500/40 bg-brand-500/5' : 'border-white/10 bg-white/[0.02] hover:border-white/20'
                   )}
                 >
@@ -272,7 +292,7 @@ function Editor({ video, onBack, onChange }: { video: Video; onBack: () => void;
                       value={s.heading}
                       onChange={(e) => updateScene(i, { heading: e.target.value })}
                       onClick={(e) => e.stopPropagation()}
-                      className="flex-1 bg-transparent text-sm font-medium text-white focus:outline-none"
+                      className="flex-1 rounded bg-transparent text-sm font-medium text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/40"
                     />
                     {s.stat && <span className="rounded bg-white/10 px-2 py-0.5 text-xs text-slate-300">{s.stat}</span>}
                   </div>
@@ -281,7 +301,7 @@ function Editor({ video, onBack, onChange }: { video: Video; onBack: () => void;
                     onChange={(e) => updateScene(i, { narration: e.target.value })}
                     onClick={(e) => e.stopPropagation()}
                     rows={2}
-                    className="w-full resize-none bg-transparent text-sm text-slate-300 focus:outline-none"
+                    className="w-full resize-none rounded bg-transparent text-sm text-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/40"
                   />
                   <div className="mt-2 flex items-center gap-2">
                     <span className="text-xs text-slate-500">Caption:</span>
@@ -289,7 +309,7 @@ function Editor({ video, onBack, onChange }: { video: Video; onBack: () => void;
                       value={s.caption}
                       onChange={(e) => updateScene(i, { caption: e.target.value })}
                       onClick={(e) => e.stopPropagation()}
-                      className="flex-1 rounded bg-white/5 px-2 py-1 text-xs text-slate-200 focus:outline-none"
+                      className="flex-1 rounded bg-white/5 px-2 py-1 text-xs text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/40"
                     />
                   </div>
                 </div>
@@ -322,6 +342,8 @@ function Editor({ video, onBack, onChange }: { video: Video; onBack: () => void;
               {draft.scenes.map((_, i) => (
                 <button
                   key={i}
+                  type="button"
+                  aria-label={`Preview scene ${i + 1}`}
                   onClick={() => setPreviewIdx(i)}
                   className={cn('h-1.5 rounded-full transition-all', previewIdx === i ? 'w-6 bg-brand-400' : 'w-1.5 bg-white/20')}
                 />
@@ -354,7 +376,12 @@ function HashtagEditor({ tags, onChange }: { tags: string[]; onChange: (t: strin
         {tags.map((t) => (
           <span key={t} className="chip border border-brand-500/20 bg-brand-500/10 text-brand-300">
             #{t}
-            <button onClick={() => onChange(tags.filter((x) => x !== t))} className="ml-0.5 text-brand-400/60 hover:text-brand-300">
+            <button
+              type="button"
+              aria-label={`Remove hashtag ${t}`}
+              onClick={() => onChange(tags.filter((x) => x !== t))}
+              className="ml-0.5 text-brand-400/60 hover:text-brand-300"
+            >
               <X className="h-3 w-3" />
             </button>
           </span>
@@ -368,7 +395,7 @@ function HashtagEditor({ tags, onChange }: { tags: string[]; onChange: (t: strin
           placeholder="Add a hashtag…"
           className="input flex-1 py-2 text-sm"
         />
-        <Button variant="secondary" size="sm" onClick={add}>
+        <Button variant="secondary" size="sm" aria-label="Add hashtag" onClick={add}>
           <Plus className="h-4 w-4" />
         </Button>
       </div>

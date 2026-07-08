@@ -34,16 +34,3 @@ export function requireAdmin(req: Request, _res: Response, next: NextFunction) {
   if (req.user.role !== 'ADMIN') return next(forbidden('Admin access required'));
   next();
 }
-
-/** Attach the user if a valid token is present, but never reject. */
-export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
-  const token = extractToken(req);
-  if (token) {
-    try {
-      req.user = verifyToken(token);
-    } catch {
-      /* ignore */
-    }
-  }
-  next();
-}

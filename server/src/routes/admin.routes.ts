@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { asyncHandler, notFound } from '../utils/http.js';
+import { asyncHandler, badRequest, notFound } from '../utils/http.js';
 import { validateBody } from '../middleware/validate.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { openaiStatus } from '../services/openai.service.js';
@@ -40,6 +40,7 @@ router.get(
   asyncHandler(async (_req, res) => {
     const users = await prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
+      take: 500,
       select: {
         id: true,
         name: true,
@@ -61,9 +62,17 @@ router.patch(
   asyncHandler(async (req, res) => {
     const user = await prisma.user.findUnique({ where: { id: req.params.id } });
     if (!user) throw notFound('User not found');
+    const nextRole = (req.body as z.infer<typeof roleSchema>).role;
+
+    // Don't allow removing the last remaining admin (would lock everyone out).
+    if (user.role === 'ADMIN' && nextRole !== 'ADMIN') {
+      const admins = await prisma.user.count({ where: { role: 'ADMIN' } });
+      if (admins <= 1) throw badRequest('Cannot demote the last remaining admin.');
+    }
+
     const updated = await prisma.user.update({
       where: { id: user.id },
-      data: { role: (req.body as z.infer<typeof roleSchema>).role },
+      data: { role: nextRole },
       select: { id: true, name: true, email: true, role: true },
     });
     res.json({ user: updated });

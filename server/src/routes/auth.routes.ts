@@ -7,6 +7,7 @@ import { asyncHandler, badRequest, unauthorized } from '../utils/http.js';
 import { validateBody } from '../middleware/validate.js';
 import { requireAuth } from '../middleware/auth.js';
 import { TEMPLATE_SEEDS } from '../data/templates.js';
+import { env } from '../config/env.js';
 
 const router = Router();
 
@@ -45,7 +46,12 @@ router.post(
     await prisma.brandSettings.create({ data: { userId: user.id } });
 
     const token = signToken({ sub: user.id, email: user.email, role: user.role });
-    res.cookie('token', token, { httpOnly: true, sameSite: 'lax', maxAge: 7 * 24 * 3600 * 1000 });
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: env.isProd,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 3600 * 1000,
+    });
     res.status(201).json({ token, user: publicUser(user), templatesAvailable: TEMPLATE_SEEDS.length });
   })
 );
@@ -61,13 +67,18 @@ router.post(
     if (!ok) throw unauthorized('Invalid email or password');
 
     const token = signToken({ sub: user.id, email: user.email, role: user.role });
-    res.cookie('token', token, { httpOnly: true, sameSite: 'lax', maxAge: 7 * 24 * 3600 * 1000 });
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: env.isProd,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 3600 * 1000,
+    });
     res.json({ token, user: publicUser(user) });
   })
 );
 
 router.post('/logout', (_req, res) => {
-  res.clearCookie('token');
+  res.clearCookie('token', { httpOnly: true, secure: env.isProd, sameSite: 'lax' });
   res.json({ ok: true });
 });
 

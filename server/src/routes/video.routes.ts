@@ -47,6 +47,7 @@ router.get(
     const videos = await prisma.video.findMany({
       where: { userId: req.user!.sub, ...(status ? { status } : {}) },
       orderBy: { createdAt: 'desc' },
+      take: 500,
     });
     res.json({ videos: videos.map(serializeVideo) });
   })
