@@ -41,7 +41,8 @@ export function Hero() {
   return (
     <section ref={root} className="relative overflow-hidden pt-36 pb-24 sm:pt-44">
       <div className="pointer-events-none absolute inset-0 bg-grid-glow" />
-      <FloatingBalls />
+      {/* Decorative — hidden on mobile so they never overlap the headline. */}
+      <FloatingBalls className="hidden sm:block" />
       <div className="mx-auto grid max-w-6xl items-center gap-16 px-6 lg:grid-cols-2">
         <div>
           <div className="hero-reveal inline-flex items-center gap-2 rounded-full border border-brand-500/30 bg-brand-500/10 px-3 py-1.5 text-xs font-medium text-brand-300">

@@ -74,7 +74,7 @@ export function Nav() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="glass-strong absolute inset-x-4 top-20 rounded-2xl p-4 md:hidden"
+            className="absolute inset-x-4 top-20 rounded-2xl border border-white/10 bg-ink-800/95 p-4 shadow-card backdrop-blur-xl md:hidden"
           >
             {links.map((l) => (
               <a

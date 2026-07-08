@@ -13,7 +13,7 @@ export function CTA() {
           viewport={{ once: true }}
           className="relative overflow-hidden rounded-3xl border border-brand-500/30 bg-gradient-to-br from-brand-500/15 via-ink-900 to-accent-sky/10 p-12 text-center shadow-glow"
         >
-          <FloatingBalls />
+          <FloatingBalls className="hidden sm:block" />
           <div className="relative">
             <h2 className="mx-auto max-w-2xl font-display text-4xl font-semibold text-white text-balance sm:text-5xl">
               Start forging viral football content today

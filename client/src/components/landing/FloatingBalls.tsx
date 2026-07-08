@@ -9,9 +9,9 @@ const balls = [
   { emoji: '📈', top: '48%', left: '5%', size: 32, dur: 9.5, delay: 1.4 },
 ];
 
-export function FloatingBalls() {
+export function FloatingBalls({ className = '' }: { className?: string }) {
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+    <div className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`} aria-hidden>
       {balls.map((b, i) => (
         <motion.div
           key={i}
