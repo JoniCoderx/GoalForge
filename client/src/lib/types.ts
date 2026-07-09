@@ -70,9 +70,6 @@ export interface Video {
   width: number;
   height: number;
   fps: number;
-  views: number;
-  likes: number;
-  shares: number;
   error: string | null;
   createdAt: string;
   updatedAt: string;
@@ -122,13 +119,11 @@ export interface AnalyticsOverview {
     videos: number;
     ready: number;
     exports: number;
-    views: number;
-    likes: number;
-    shares: number;
-    engagementRate: number;
+    rendersCompleted: number;
+    minutesRendered: number;
   };
   byTemplate: Record<string, number>;
-  timeline: { date: string; count: number; views: number }[];
+  timeline: { date: string; count: number; rendered: number }[];
 }
 
 export interface AdminStats {

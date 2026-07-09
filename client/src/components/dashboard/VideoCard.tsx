@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Eye, Heart, Share2, Clock } from 'lucide-react';
+import { Clock, Film } from 'lucide-react';
 import type { Video } from '@/lib/types';
 import { StatusBadge } from '@/components/ui/Badge';
 import { VideoThumb } from './VideoThumb';
-import { formatDuration, formatNumber, formatRelative } from '@/lib/utils';
+import { formatDuration, formatRelative } from '@/lib/utils';
 
 export function VideoCard({ video, index = 0 }: { video: Video; index?: number }) {
   return (
@@ -35,13 +35,10 @@ export function VideoCard({ video, index = 0 }: { video: Video; index?: number }
           <p className="mt-0.5 text-xs text-slate-500">{formatRelative(video.createdAt)}</p>
           <div className="mt-3 flex items-center gap-3 text-xs text-slate-400">
             <span className="flex items-center gap-1">
-              <Eye className="h-3.5 w-3.5" /> {formatNumber(video.views)}
+              <Film className="h-3.5 w-3.5" /> {video.width}×{video.height}
             </span>
             <span className="flex items-center gap-1">
-              <Heart className="h-3.5 w-3.5" /> {formatNumber(video.likes)}
-            </span>
-            <span className="flex items-center gap-1">
-              <Share2 className="h-3.5 w-3.5" /> {formatNumber(video.shares)}
+              <Clock className="h-3.5 w-3.5" /> {video.fps} fps
             </span>
           </div>
         </div>

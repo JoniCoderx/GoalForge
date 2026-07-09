@@ -19,7 +19,7 @@ import { formatNumber } from '@/lib/utils';
 
 export interface TimelinePoint {
   date: string;
-  Views: number;
+  Rendered: number;
   Created: number;
 }
 
@@ -64,9 +64,9 @@ export default function AnalyticsCharts({
   timeline: TimelinePoint[];
   templateData: TemplateDatum[];
 }) {
-  const [series, setSeries] = useState<'views' | 'created'>('views');
+  const [series, setSeries] = useState<'rendered' | 'created'>('rendered');
 
-  const hasTimeline = timeline.some((d) => d.Views > 0 || d.Created > 0);
+  const hasTimeline = timeline.some((d) => d.Rendered > 0 || d.Created > 0);
   const hasTemplates = templateData.length > 0;
 
   return (
@@ -81,13 +81,13 @@ export default function AnalyticsCharts({
           <div className="flex rounded-lg border border-white/10 bg-white/[0.02] p-0.5 text-xs">
             <button
               type="button"
-              onClick={() => setSeries('views')}
+              onClick={() => setSeries('rendered')}
               className={
                 'rounded-md px-3 py-1.5 font-medium transition ' +
-                (series === 'views' ? 'bg-brand-500/15 text-brand-300' : 'text-slate-400 hover:text-white')
+                (series === 'rendered' ? 'bg-brand-500/15 text-brand-300' : 'text-slate-400 hover:text-white')
               }
             >
-              Views
+              Renders
             </button>
             <button
               type="button"
@@ -105,7 +105,7 @@ export default function AnalyticsCharts({
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={timeline} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
               <defs>
-                <linearGradient id="anViews" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="anRendered" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#22c55e" stopOpacity={0.4} />
                   <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
                 </linearGradient>
@@ -125,13 +125,13 @@ export default function AnalyticsCharts({
                 tickFormatter={(v) => formatNumber(Number(v))}
               />
               <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)' }} />
-              {series === 'views' ? (
+              {series === 'rendered' ? (
                 <Area
                   type="monotone"
-                  dataKey="Views"
+                  dataKey="Rendered"
                   stroke="#22c55e"
                   strokeWidth={2}
-                  fill="url(#anViews)"
+                  fill="url(#anRendered)"
                   dot={false}
                   activeDot={{ r: 4, fill: '#22c55e' }}
                 />

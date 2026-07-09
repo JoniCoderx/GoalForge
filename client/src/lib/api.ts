@@ -159,7 +159,6 @@ export const api = {
     }) => post<{ video: Video; source: string; jobId?: string }>('/videos/generate', data),
     update: (id: string, data: Partial<Video>) => patch<{ video: Video }>(`/videos/${id}`, data),
     export: (id: string) => post<{ jobId: string; status: string }>(`/videos/${id}/export`),
-    engagement: (id: string) => post<{ video: Video }>(`/videos/${id}/engagement`),
     remove: (id: string) => del<{ ok: boolean }>(`/videos/${id}`),
   },
   exports: {

@@ -3,13 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   BarChart3,
-  Eye,
-  Heart,
-  Share2,
-  Flame,
+  Film,
+  Clock3,
+  LayoutTemplate,
   Rocket,
   CheckCircle2,
-  Info,
   AlertTriangle,
 } from 'lucide-react';
 import { api, describeApiError } from '@/lib/api';
@@ -58,7 +56,7 @@ export default function Analytics() {
     () =>
       (overview?.timeline ?? []).slice(-14).map((d) => ({
         date: dayLabel(d.date),
-        Views: d.views,
+        Rendered: d.rendered,
         Created: d.count,
       })),
     [overview]
@@ -106,7 +104,7 @@ export default function Analytics() {
         <PageHeader
           icon={<BarChart3 className="h-5 w-5" />}
           title="Analytics"
-          subtitle="Track how your football shorts are performing."
+          subtitle="Your content production at a glance."
         />
         <EmptyState
           icon={<AlertTriangle className="h-7 w-7" />}
@@ -124,7 +122,7 @@ export default function Analytics() {
         <PageHeader
           icon={<BarChart3 className="h-5 w-5" />}
           title="Analytics"
-          subtitle="Track how your football shorts are performing."
+          subtitle="Your content production at a glance."
         />
         <EmptyState
           icon={<BarChart3 className="h-7 w-7" />}
@@ -141,30 +139,36 @@ export default function Analytics() {
       <PageHeader
         icon={<BarChart3 className="h-5 w-5" />}
         title="Analytics"
-        subtitle="Track how your football shorts are performing across platforms."
+        subtitle="Your content production at a glance — videos, renders and content mix."
       />
 
       {/* Metrics */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard label="Total views" value={totals?.views ?? 0} icon={<Eye className="h-5 w-5" />} accent="sky" delay={0} />
-        <StatCard label="Likes" value={totals?.likes ?? 0} icon={<Heart className="h-5 w-5" />} accent="rose" delay={0.05} />
-        <StatCard label="Shares" value={totals?.shares ?? 0} icon={<Share2 className="h-5 w-5" />} accent="violet" delay={0.1} />
+        <StatCard label="Total videos" value={totals?.videos ?? 0} icon={<Film className="h-5 w-5" />} accent="sky" delay={0} />
+        <StatCard label="Ready to post" value={totals?.ready ?? 0} icon={<CheckCircle2 className="h-5 w-5" />} accent="brand" delay={0.05} />
+        <StatCard label="Exports queued" value={totals?.exports ?? 0} icon={<Rocket className="h-5 w-5" />} accent="violet" delay={0.1} />
         <StatCard
-          label="Engagement rate"
-          value={totals?.engagementRate ?? 0}
-          suffix="%"
-          icon={<Flame className="h-5 w-5" />}
-          accent="amber"
+          label="Renders completed"
+          value={totals?.rendersCompleted ?? 0}
+          icon={<Rocket className="h-5 w-5" />}
+          accent="brand"
           delay={0.15}
         />
-        <StatCard label="Exports" value={totals?.exports ?? 0} icon={<Rocket className="h-5 w-5" />} accent="brand" delay={0.2} />
-        <StatCard label="Ready to post" value={totals?.ready ?? 0} icon={<CheckCircle2 className="h-5 w-5" />} accent="brand" delay={0.25} />
+        <StatCard
+          label="Minutes of content"
+          value={totals?.minutesRendered ?? 0}
+          icon={<Clock3 className="h-5 w-5" />}
+          accent="amber"
+          delay={0.2}
+        />
+        <StatCard
+          label="Templates used"
+          value={Object.keys(overview?.byTemplate ?? {}).length}
+          icon={<LayoutTemplate className="h-5 w-5" />}
+          accent="rose"
+          delay={0.25}
+        />
       </div>
-
-      <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
-        <Info className="h-3.5 w-3.5" />
-        Views, likes, shares and engagement are simulated placeholders for demo purposes.
-      </p>
 
       <Suspense
         fallback={

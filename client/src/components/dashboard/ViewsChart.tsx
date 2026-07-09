@@ -12,7 +12,7 @@ import { formatNumber } from '@/lib/utils';
 
 export interface ViewsPoint {
   date: string;
-  Views: number;
+  Rendered: number;
 }
 
 function ChartTooltip({ active, payload, label }: TooltipProps<number, string>) {
@@ -36,7 +36,7 @@ export default function ViewsChart({ data }: { data: ViewsPoint[] }) {
     <ResponsiveContainer width="100%" height={240}>
       <AreaChart data={data} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
         <defs>
-          <linearGradient id="ovViews" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id="ovRendered" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#22c55e" stopOpacity={0.45} />
             <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
           </linearGradient>
@@ -58,10 +58,10 @@ export default function ViewsChart({ data }: { data: ViewsPoint[] }) {
         <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)' }} />
         <Area
           type="monotone"
-          dataKey="Views"
+          dataKey="Rendered"
           stroke="#22c55e"
           strokeWidth={2}
-          fill="url(#ovViews)"
+          fill="url(#ovRendered)"
           dot={false}
           activeDot={{ r: 4, fill: '#22c55e' }}
         />

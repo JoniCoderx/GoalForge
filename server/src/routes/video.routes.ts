@@ -206,24 +206,6 @@ router.post(
   })
 );
 
-/** Placeholder analytics interaction (simulated engagement). */
-router.post(
-  '/:id/engagement',
-  asyncHandler(async (req, res) => {
-    const video = await prisma.video.findFirst({ where: { id: req.params.id, userId: req.user!.sub } });
-    if (!video) throw notFound('Video not found');
-    const updated = await prisma.video.update({
-      where: { id: video.id },
-      data: {
-        views: video.views + Math.floor(Math.random() * 500),
-        likes: video.likes + Math.floor(Math.random() * 80),
-        shares: video.shares + Math.floor(Math.random() * 20),
-      },
-    });
-    res.json({ video: serializeVideo(updated) });
-  })
-);
-
 router.delete(
   '/:id',
   asyncHandler(async (req, res) => {

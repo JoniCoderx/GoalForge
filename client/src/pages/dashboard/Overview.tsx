@@ -5,8 +5,8 @@ import { motion } from 'framer-motion';
 import {
   Film,
   CheckCircle2,
-  Eye,
-  Flame,
+  Rocket,
+  Clock3,
   Sparkles,
   LayoutTemplate,
   Palette,
@@ -72,12 +72,12 @@ export default function Overview() {
     () =>
       (overview?.timeline ?? []).slice(-14).map((d) => ({
         date: dayLabel(d.date),
-        Views: d.views,
+        Rendered: d.rendered,
       })),
     [overview]
   );
 
-  const hasChart = chartData.some((d) => d.Views > 0);
+  const hasChart = chartData.some((d) => d.Rendered > 0);
 
   return (
     <div>
@@ -134,20 +134,18 @@ export default function Overview() {
             delay={0.05}
           />
           <StatCard
-            label="Total views"
-            value={totals?.views ?? 0}
-            icon={<Eye className="h-5 w-5" />}
+            label="Renders completed"
+            value={totals?.rendersCompleted ?? 0}
+            icon={<Rocket className="h-5 w-5" />}
             accent="violet"
             delay={0.1}
           />
           <StatCard
-            label="Engagement rate"
-            value={totals?.engagementRate ?? 0}
-            suffix="%"
-            icon={<Flame className="h-5 w-5" />}
+            label="Minutes of content"
+            value={totals?.minutesRendered ?? 0}
+            icon={<Clock3 className="h-5 w-5" />}
             accent="amber"
             delay={0.15}
-            hint="Simulated placeholder metric"
           />
         </div>
       )}
@@ -157,8 +155,8 @@ export default function Overview() {
         <div className="card p-5">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="font-display font-semibold text-white">Views this fortnight</h2>
-              <p className="text-xs text-slate-500">Last 14 days · simulated engagement</p>
+              <h2 className="font-display font-semibold text-white">Renders this fortnight</h2>
+              <p className="text-xs text-slate-500">Last 14 days of completed exports</p>
             </div>
             <div className="grid h-9 w-9 place-items-center rounded-lg bg-brand-500/10 text-brand-400">
               <TrendingUp className="h-4 w-4" />
@@ -174,7 +172,7 @@ export default function Overview() {
             </div>
           ) : (
             <div className="grid h-[240px] place-items-center text-center text-sm text-slate-500">
-              No view data yet — export a video to start tracking.
+              No renders yet — export a video and your activity will appear here.
             </div>
           )}
         </div>

@@ -14,7 +14,6 @@ import {
   LayoutTemplate,
   Maximize2,
   Rocket,
-  Sparkles,
   Trash2,
 } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -61,16 +60,6 @@ export default function VideoDetail() {
       toast.success('Added to the render queue 🎬');
     },
     onError: () => toast.error('Could not start export'),
-  });
-
-  const engagementMutation = useMutation({
-    mutationFn: () => api.videos.engagement(id),
-    onSuccess: () => {
-      refetch();
-      qc.invalidateQueries({ queryKey: ['videos'] });
-      toast.success('Simulated fresh engagement 📈');
-    },
-    onError: () => toast.error('Could not simulate engagement'),
   });
 
   const deleteMutation = useMutation({
@@ -170,14 +159,6 @@ export default function VideoDetail() {
               onClick={() => downloadUrl(video.videoPath!, `goalforge-${video.id}.mp4`)}
             >
               <Download className="h-4 w-4" /> Download
-            </Button>
-            <Button
-              variant="secondary"
-              className="w-full"
-              loading={engagementMutation.isPending}
-              onClick={() => engagementMutation.mutate()}
-            >
-              <Sparkles className="h-4 w-4" /> Engagement
             </Button>
             <Button
               variant="danger"
