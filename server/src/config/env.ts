@@ -53,6 +53,13 @@ export const env = {
     width: int('VIDEO_WIDTH', 1080),
     height: int('VIDEO_HEIGHT', 1920),
     fps: int('VIDEO_FPS', 60),
+    // x264 encode profile. `superfast` keeps renders fast enough for small
+    // (0.5 CPU) production instances; RENDER_CRF balances the quality cost.
+    preset: str('RENDER_PRESET', 'superfast'),
+    crf: int('RENDER_CRF', 22),
+    // Hard watchdog: a render that exceeds this is killed and marked FAILED
+    // so a hung ffmpeg can never block the queue forever.
+    timeoutMs: int('RENDER_TIMEOUT_MS', 10 * 60 * 1000),
   },
 
   // Explicit CORS allowlist for production. Defaults to CLIENT_URL; add extra

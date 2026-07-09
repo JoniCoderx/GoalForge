@@ -31,10 +31,19 @@ function gradientSource(
   const cy = `(0.34*H+0.10*H*cos(T*0.42))`;
   const f = `pow(1-clip(hypot(X-${cx}\\,Y-${cy})/(0.62*H)\\,0\\,1)\\,1.6)*0.72`;
   const chan = (b: number, g: number) => `${b}+(${g}-${b})*(${f})`;
+  // geq evaluates an interpreted expression per pixel per channel, which
+  // dominates render CPU at 60 fps. The glow drifts so slowly that computing
+  // it at 10 fps and duplicating frames up to the output rate is visually
+  // identical — and ~6x cheaper, which matters on small production instances.
+  const srcFps = Math.min(fps, 10);
+  // Only duplicate frames when actually upsampling — on this ffmpeg build,
+  // `fps=` swallows a single-frame stream (thumbnails) and exits 0 with an
+  // empty output.
+  const dup = fps > srcFps ? `,fps=${fps}` : '';
   return (
-    `color=c=black:s=72x128:r=${fps}:d=${total},format=rgb24,geq=` +
+    `color=c=black:s=72x128:r=${srcFps}:d=${total},format=rgb24,geq=` +
     `r='${chan(base[0], glow[0])}':g='${chan(base[1], glow[1])}':b='${chan(base[2], glow[2])}',` +
-    `scale=${width}:${height}:flags=bicubic,format=yuv420p[${outLabel}]`
+    `scale=${width}:${height}:flags=bilinear,format=yuv420p${dup}[${outLabel}]`
   );
 }
 
@@ -229,13 +238,15 @@ export async function renderVideo(
       '-t', String(total),
       '-r', String(fps),
       '-c:v', 'libx264',
-      '-preset', 'veryfast',
+      '-preset', env.video.preset,
+      '-crf', String(env.video.crf),
       '-profile:v', 'high',
       '-pix_fmt', 'yuv420p',
       '-movflags', '+faststart',
       videoPath,
     ],
     {
+      timeoutMs: env.video.timeoutMs,
       onProgress: (sec) => {
         const pct = Math.min(92, 10 + Math.round((sec / total) * 80));
         onProgress?.(pct, 'rendering');
@@ -253,16 +264,31 @@ export async function renderVideo(
     `[b2]drawtext=fontfile='${font}':textfile='${thumbTextFile}':fontsize=180:fontcolor=white:borderw=10:bordercolor=black@0.6:line_spacing=8:x=(w-text_w)/2:y=(h-text_h)/2[tout]`,
   ].join(';');
 
-  await runFfmpeg([
-    '-y',
-    '-filter_complex', thumbGraph,
-    '-map', '[tout]',
-    '-frames:v', '1',
-    '-q:v', '3',
-    thumbPath,
-  ]);
+  await runFfmpeg(
+    [
+      '-y',
+      '-filter_complex', thumbGraph,
+      '-map', '[tout]',
+      '-frames:v', '1',
+      '-q:v', '3',
+      thumbPath,
+    ],
+    { timeoutMs: 60_000 }
+  );
 
   onProgress?.(99, 'finalizing');
+
+  // ffmpeg can exit 0 without writing a file (e.g. a filter emitting zero
+  // frames) — never report READY unless both artifacts actually exist.
+  for (const [path, what] of [
+    [videoPath, 'video'],
+    [thumbPath, 'thumbnail'],
+  ] as const) {
+    const stat = await fs.stat(path).catch(() => null);
+    if (!stat || stat.size === 0) {
+      throw new Error(`Render produced no ${what} file. Please try exporting again.`);
+    }
+  }
 
   // Clean temp textfiles.
   await fs.rm(workDir, { recursive: true, force: true }).catch(() => undefined);

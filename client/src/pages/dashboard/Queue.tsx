@@ -34,13 +34,32 @@ export default function Queue() {
   const depth = data?.depth ?? 0;
   const active = jobs.filter((j) => ACTIVE.has(j.status));
 
-  // When the queue drains to empty, refresh dependent views (videos become READY).
+  // When the queue drains to empty, refresh dependent views (videos become
+  // READY) and report the real outcome — a drained queue can also mean a job
+  // failed, and celebrating a failure would hide it from the user.
   const prevDepth = useRef<number | null>(null);
   useEffect(() => {
     if (data === undefined) return;
     if (prevDepth.current !== null && prevDepth.current > 0 && depth === 0) {
       qc.invalidateQueries({ queryKey: ['videos'] });
-      toast.success('Queue finished — all exports rendered 🎉');
+      api.exports
+        .history()
+        .then(({ jobs: recent }) => {
+          const cutoff = Date.now() - 5 * 60 * 1000;
+          const failed = recent.filter(
+            (j) => j.status === 'FAILED' && j.finishedAt && new Date(j.finishedAt).getTime() > cutoff
+          );
+          if (failed.length > 0) {
+            toast.error(
+              failed.length === 1
+                ? 'An export failed — open the video for details.'
+                : `${failed.length} exports failed — open the videos for details.`
+            );
+          } else {
+            toast.success('Queue finished — all exports rendered 🎉');
+          }
+        })
+        .catch(() => toast.success('Queue finished'));
     }
     prevDepth.current = depth;
   }, [depth, data, qc]);

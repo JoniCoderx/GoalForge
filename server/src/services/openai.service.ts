@@ -6,7 +6,11 @@ let client: OpenAI | null = null;
 
 export function getOpenAI(): OpenAI | null {
   if (!hasOpenAI) return null;
-  if (!client) client = new OpenAI({ apiKey: env.openaiApiKey });
+  // Bound the request: the SDK's defaults (10 min timeout, retries) would let
+  // a slow upstream hang /api/videos/generate far past any proxy timeout.
+  // With a tight bound, a slow OpenAI call degrades gracefully to the local
+  // generator instead of leaving the UI stuck.
+  if (!client) client = new OpenAI({ apiKey: env.openaiApiKey, timeout: 25_000, maxRetries: 1 });
   return client;
 }
 

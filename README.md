@@ -203,6 +203,14 @@ in-process, sequential queue (`render.service.ts`) — swappable for a dedicated
 later without changing callers. Fonts are bundled in `server/assets/fonts` so rendering
 is portable (no system fonts required).
 
+The pipeline is tuned for small production instances (Render Starter is 0.5 CPU):
+the animated gradient is computed at 10 fps and frame-duplicated to the output
+rate (visually identical, ~6× cheaper), and the encoder preset/CRF are
+configurable via `RENDER_PRESET` / `RENDER_CRF` (defaults `superfast` / `22`).
+A watchdog (`RENDER_TIMEOUT_MS`, default 10 min) kills any render that
+overruns and marks the job FAILED with a clear message, so one bad render can
+never wedge the queue.
+
 ## 🔌 Extensibility
 
 - **Storage** — implement `StorageDriver` (see `services/storage/types.ts`) for S3/GCS.
