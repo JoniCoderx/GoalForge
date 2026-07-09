@@ -225,7 +225,22 @@ const expenseSchema = z.object({
   addedBy: z.string().max(80).optional(),
 });
 
+/**
+ * Derive the next payment date from the paid date + frequency, so recurring
+ * expenses show up in "Upcoming recurring payments" even when the user leaves
+ * the optional next-payment field blank ("custom" can't be inferred).
+ */
+function deriveNextPayment(datePaid: Date, frequency: string): Date | null {
+  const next = new Date(datePaid);
+  if (frequency === 'monthly') next.setMonth(next.getMonth() + 1);
+  else if (frequency === 'yearly') next.setFullYear(next.getFullYear() + 1);
+  else if (frequency === 'weekly') next.setDate(next.getDate() + 7);
+  else return null;
+  return next;
+}
+
 function expenseData(b: z.infer<typeof expenseSchema>) {
+  const frequency = b.isRecurring ? b.recurringFrequency ?? 'monthly' : null;
   return {
     projectId: b.projectId,
     title: b.title,
@@ -236,8 +251,10 @@ function expenseData(b: z.infer<typeof expenseSchema>) {
     currency: b.currency.toUpperCase(),
     datePaid: b.datePaid,
     isRecurring: b.isRecurring,
-    recurringFrequency: b.isRecurring ? b.recurringFrequency ?? 'monthly' : null,
-    nextPaymentDate: b.isRecurring ? b.nextPaymentDate ?? null : null,
+    recurringFrequency: frequency,
+    nextPaymentDate: b.isRecurring
+      ? b.nextPaymentDate ?? (frequency ? deriveNextPayment(b.datePaid, frequency) : null)
+      : null,
     status: b.status,
     notes: b.notes ?? '',
     addedBy: b.addedBy ?? '',
@@ -320,6 +337,14 @@ router.patch(
     }
     if (b.recurringFrequency !== undefined) data.recurringFrequency = b.recurringFrequency;
     if (b.nextPaymentDate !== undefined) data.nextPaymentDate = b.nextPaymentDate;
+
+    // Same derivation as on create: if the expense ends up recurring with no
+    // next payment date, infer it from the paid date + frequency.
+    const merged = { ...existing, ...data };
+    if (merged.isRecurring && !merged.nextPaymentDate && merged.recurringFrequency) {
+      const derived = deriveNextPayment(new Date(merged.datePaid), merged.recurringFrequency);
+      if (derived) data.nextPaymentDate = derived;
+    }
 
     const expense = await prisma.expense.update({ where: { id: existing.id }, data });
     await prisma.expenseProject.update({ where: { id: expense.projectId }, data: { updatedAt: new Date() } });
