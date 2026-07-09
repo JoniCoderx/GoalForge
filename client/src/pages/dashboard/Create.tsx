@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { Sparkles, Wand2, Rocket, Save, ChevronLeft, X, Plus, AlertTriangle } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, describeApiError } from '@/lib/api';
 import type { Template, Video, Scene } from '@/lib/types';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -19,7 +19,7 @@ export default function Create() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['templates'],
     queryFn: api.templates.list,
   });
@@ -84,7 +84,7 @@ export default function Create() {
         <EmptyState
           icon={<AlertTriangle className="h-7 w-7" />}
           title="Couldn't load templates"
-          description="Something went wrong reaching the template library. Please try again."
+          description={describeApiError(error)}
           action={<Button onClick={() => refetch()}>Retry</Button>}
         />
       ) : (

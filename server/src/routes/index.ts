@@ -14,8 +14,19 @@ import { openaiStatus } from '../services/openai.service.js';
 
 const router = Router();
 
+// Deploy fingerprint: Render injects RENDER_GIT_COMMIT, so /api/health shows
+// exactly which commit is live — a stale deploy is visible at a glance.
+const bootedAt = new Date().toISOString();
+
 router.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'goalforge-api', time: new Date().toISOString(), ai: openaiStatus() });
+  res.json({
+    status: 'ok',
+    service: 'goalforge-api',
+    time: new Date().toISOString(),
+    commit: (process.env.RENDER_GIT_COMMIT ?? 'unknown').slice(0, 7),
+    bootedAt,
+    ai: openaiStatus(),
+  });
 });
 
 router.use('/auth', authRoutes);

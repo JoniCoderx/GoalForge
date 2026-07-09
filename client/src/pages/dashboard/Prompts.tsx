@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { SlidersHorizontal, Save, RotateCcw, Info, FileText, AlertTriangle, Lock } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, describeApiError } from '@/lib/api';
 import { useAuth } from '@/store/auth';
 import type { Prompt } from '@/lib/types';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -17,7 +17,7 @@ export default function Prompts() {
   const qc = useQueryClient();
   const { user } = useAuth();
   const canEdit = user?.role === 'ADMIN';
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['prompts'],
     queryFn: api.prompts.list,
     refetchOnWindowFocus: false,
@@ -111,7 +111,7 @@ export default function Prompts() {
         <EmptyState
           icon={<AlertTriangle className="h-7 w-7" />}
           title="Couldn't load prompts"
-          description="Something went wrong reaching the prompt library. Please refresh and try again."
+          description={describeApiError(error)}
         />
       ) : prompts.length === 0 ? (
         <EmptyState

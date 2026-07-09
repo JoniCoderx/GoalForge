@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { Palette, Save, RotateCcw, ImageUp, Film, Lock, AlertTriangle } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, describeApiError } from '@/lib/api';
 import type { BrandSettings } from '@/lib/types';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -225,7 +225,7 @@ function ComingSoonDrop({ label, icon }: { label: string; icon: React.ReactNode 
 
 export default function Brand() {
   const qc = useQueryClient();
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['brand'],
     queryFn: api.brand.get,
     refetchOnWindowFocus: false,
@@ -307,7 +307,7 @@ export default function Brand() {
         <EmptyState
           icon={<AlertTriangle className="h-7 w-7" />}
           title="Couldn't load brand settings"
-          description="Something went wrong reaching your brand configuration. Please try again."
+          description={describeApiError(error)}
           action={<Button onClick={() => refetch()}>Retry</Button>}
         />
       ) : isLoading || !form ? (

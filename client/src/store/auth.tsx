@@ -5,6 +5,8 @@ import type { User } from '@/lib/types';
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
+  /** True when a stored token existed but failed validation (expired/rotated). */
+  sessionExpired: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -16,6 +18,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   useEffect(() => {
     const token = getToken();
@@ -26,7 +29,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     api.auth
       .me()
       .then((r) => setUser(r.user))
-      .catch(() => setToken(null))
+      .catch(() => {
+        // A token was present but rejected — tell the login page why.
+        setToken(null);
+        setSessionExpired(true);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -34,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const r = await api.auth.login({ email, password });
     setToken(r.token);
     setUser(r.user);
+    setSessionExpired(false);
   };
 
   const register = async (name: string, email: string, password: string) => {
@@ -58,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, refresh }}>
+    <AuthContext.Provider value={{ user, loading, sessionExpired, login, register, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );

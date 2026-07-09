@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { Loader2, ListVideo, Cpu, CheckCircle2, Rocket } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, describeApiError } from '@/lib/api';
 import type { ExportJob } from '@/lib/types';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatusBadge } from '@/components/ui/Badge';
@@ -18,7 +18,7 @@ const ACTIVE = new Set(['QUEUED', 'RENDERING']);
 
 export default function Queue() {
   const qc = useQueryClient();
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['queue'],
     queryFn: api.exports.queue,
     // Poll only while there is something rendering; go idle when the queue is
@@ -87,7 +87,7 @@ export default function Queue() {
         <EmptyState
           icon={<ListVideo className="h-7 w-7" />}
           title="Couldn't load the queue"
-          description="We hit a snag fetching the render queue. It will retry automatically."
+          description={describeApiError(error)}
         />
       ) : active.length === 0 ? (
         <EmptyState

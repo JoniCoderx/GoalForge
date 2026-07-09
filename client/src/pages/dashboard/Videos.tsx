@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Film, Plus, Search, X } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, describeApiError } from '@/lib/api';
 import type { VideoStatus } from '@/lib/types';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -22,7 +22,7 @@ const STATUS_FILTERS: Array<VideoStatus | 'ALL'> = [
 ];
 
 export default function Videos() {
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['videos'],
     queryFn: () => api.videos.list(),
   });
@@ -111,7 +111,7 @@ export default function Videos() {
         <EmptyState
           icon={<Film className="h-7 w-7" />}
           title="Couldn't load videos"
-          description="Something went wrong fetching your library. Please try again."
+          description={describeApiError(error)}
           action={<Button onClick={() => refetch()}>Retry</Button>}
         />
       ) : filtered.length === 0 ? (

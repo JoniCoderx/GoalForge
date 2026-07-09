@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { History, AlertTriangle, FolderClock } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, describeApiError } from '@/lib/api';
 import type { ExportJob, VideoStatus } from '@/lib/types';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatusBadge } from '@/components/ui/Badge';
@@ -30,7 +30,7 @@ function jobDuration(job: ExportJob): string {
 
 export default function Exports() {
   const [filter, setFilter] = useState<'ALL' | VideoStatus>('ALL');
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['exports', 'history'],
     queryFn: api.exports.history,
   });
@@ -87,7 +87,7 @@ export default function Exports() {
         <EmptyState
           icon={<AlertTriangle className="h-7 w-7" />}
           title="Couldn't load history"
-          description="We hit a snag fetching your export history. Please try again in a moment."
+          description={describeApiError(error)}
         />
       ) : jobs.length === 0 ? (
         <EmptyState

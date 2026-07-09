@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { FileText, Pencil, Plus } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, describeApiError } from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -10,7 +10,7 @@ import { SkeletonCard } from '@/components/ui/Skeleton';
 import { VideoCard } from '@/components/dashboard/VideoCard';
 
 export default function Drafts() {
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['videos', 'DRAFT'],
     queryFn: () => api.videos.list('DRAFT'),
   });
@@ -42,7 +42,7 @@ export default function Drafts() {
         <EmptyState
           icon={<FileText className="h-7 w-7" />}
           title="Couldn't load drafts"
-          description="Something went wrong fetching your drafts. Please try again."
+          description={describeApiError(error)}
           action={<Button onClick={() => refetch()}>Retry</Button>}
         />
       ) : drafts.length === 0 ? (

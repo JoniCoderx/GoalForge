@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { LayoutTemplate, Layers, ArrowRight, AlertTriangle } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, describeApiError } from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 
 export default function Templates() {
   const navigate = useNavigate();
-  const { data, isLoading, isError } = useQuery({ queryKey: ['templates'], queryFn: api.templates.list });
+  const { data, isLoading, isError, error } = useQuery({ queryKey: ['templates'], queryFn: api.templates.list });
   const templates = data?.templates ?? [];
 
   return (
@@ -42,7 +42,7 @@ export default function Templates() {
         <EmptyState
           icon={<AlertTriangle className="h-7 w-7" />}
           title="Couldn't load templates"
-          description="Something went wrong reaching the template library. Please refresh and try again."
+          description={describeApiError(error)}
         />
       ) : templates.length === 0 ? (
         <EmptyState

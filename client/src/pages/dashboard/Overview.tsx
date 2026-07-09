@@ -14,7 +14,7 @@ import {
   TrendingUp,
   AlertTriangle,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, describeApiError } from '@/lib/api';
 import { useAuth } from '@/store/auth';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { VideoCard } from '@/components/dashboard/VideoCard';
@@ -37,6 +37,7 @@ export default function Overview() {
     data: overview,
     isLoading: loadingOverview,
     isError: overviewError,
+    error: overviewErr,
     refetch: refetchOverview,
   } = useQuery({
     queryKey: ['analytics', 'overview'],
@@ -46,6 +47,7 @@ export default function Overview() {
     data: videosData,
     isLoading: loadingVideos,
     isError: videosError,
+    error: videosErr,
     refetch: refetchVideos,
   } = useQuery({
     queryKey: ['videos'],
@@ -53,6 +55,7 @@ export default function Overview() {
   });
 
   const hasError = overviewError || videosError;
+  const errorDetail = describeApiError(overviewErr ?? videosErr);
 
   const totals = overview?.totals;
   const videos = useMemo(() => videosData?.videos ?? [], [videosData]);
@@ -93,7 +96,7 @@ export default function Overview() {
         <EmptyState
           icon={<AlertTriangle className="h-7 w-7" />}
           title="Couldn't load your dashboard"
-          description="Something went wrong fetching your metrics and videos. Please try again."
+          description={errorDetail}
           action={
             <Button
               onClick={() => {

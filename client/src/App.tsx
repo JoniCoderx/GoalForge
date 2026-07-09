@@ -25,10 +25,18 @@ const Expenses = lazy(() => import('./pages/Expenses'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 function Protected({ children, adminOnly }: { children: JSX.Element; adminOnly?: boolean }) {
-  const { user, loading } = useAuth();
+  const { user, loading, sessionExpired } = useAuth();
   const location = useLocation();
   if (loading) return <PageLoader />;
-  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
+  if (!user) {
+    return (
+      <Navigate
+        to={sessionExpired ? '/login?reason=session-expired' : '/login'}
+        state={{ from: location }}
+        replace
+      />
+    );
+  }
   if (adminOnly && user.role !== 'ADMIN') return <Navigate to="/app" replace />;
   return children;
 }

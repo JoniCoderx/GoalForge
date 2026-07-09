@@ -88,10 +88,34 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     const message = body?.error || res.statusText || 'Request failed';
-    if (res.status === 401 && !path.startsWith('/auth')) setToken(null);
+    if (res.status === 401 && !path.startsWith('/auth')) {
+      // The session died mid-use (expired token, rotated JWT_SECRET on a
+      // deploy, or a banned account). Without a redirect the dashboard sits
+      // on dead "Couldn't load" cards forever — send the user back to login.
+      setToken(null);
+      const here = window.location.pathname;
+      if (here.startsWith('/app') || here.startsWith('/admin')) {
+        window.location.assign('/login?reason=session-expired');
+      }
+    }
     throw new ApiError(res.status, message, body?.details);
   }
   return body as T;
+}
+
+/**
+ * Human-readable description of a failed request, for error states — shows
+ * the real status and server message instead of a generic apology, so any
+ * production failure is diagnosable straight from the screen.
+ */
+export function describeApiError(err: unknown): string {
+  if (err instanceof ApiError) {
+    return `The server responded with HTTP ${err.status}: ${err.message}`;
+  }
+  if (err instanceof TypeError) {
+    return 'Could not reach the server — check your connection and try again.';
+  }
+  return err instanceof Error && err.message ? err.message : 'Unexpected error. Please try again.';
 }
 
 const get = <T>(path: string) => request<T>(path);

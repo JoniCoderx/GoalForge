@@ -12,7 +12,7 @@ import {
   Info,
   AlertTriangle,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, describeApiError } from '@/lib/api';
 import type { Template } from '@/lib/types';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -35,6 +35,7 @@ export default function Analytics() {
     data: overview,
     isLoading: loadingOverview,
     isError: overviewError,
+    error: overviewErr,
     refetch: refetchOverview,
   } = useQuery({
     queryKey: ['analytics', 'overview'],
@@ -110,7 +111,7 @@ export default function Analytics() {
         <EmptyState
           icon={<AlertTriangle className="h-7 w-7" />}
           title="Couldn't load analytics"
-          description="Something went wrong fetching your performance metrics. Please try again."
+          description={describeApiError(overviewErr)}
           action={<Button onClick={() => refetchOverview()}>Retry</Button>}
         />
       </div>
