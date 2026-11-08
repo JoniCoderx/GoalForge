@@ -1,141 +1,59 @@
-import type { ReactNode } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, type ReactNode } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { LIME, type GymMember } from '@/lib/gym';
+import { imageUrl, type Exercise, type GymMember } from '@/lib/gym';
 
-/* Frosted glass surface used across the gym app. */
-export function Card({ children, className, glow }: { children: ReactNode; className?: string; glow?: string }) {
+export function Card({ children, className, onClick }: { children: ReactNode; className?: string; onClick?: () => void }) {
   return (
     <div
-      className={cn(
-        'relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.035] p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.8)] backdrop-blur-xl sm:p-6',
-        className
-      )}
+      onClick={onClick}
+      className={cn('rounded-[24px] border border-white/[0.08] bg-white/[0.04] p-4', onClick && 'cursor-pointer active:bg-white/[0.07]', className)}
     >
-      {glow && (
-        <div
-          className="pointer-events-none absolute -top-32 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full opacity-60 blur-[80px]"
-          style={{ background: glow }}
-        />
-      )}
-      <div className="relative">{children}</div>
+      {children}
     </div>
   );
 }
 
-export function Avatar({
-  member,
-  size = 48,
-  live,
-  ring,
-}: {
-  member: Pick<GymMember, 'emoji' | 'color'>;
-  size?: number;
-  live?: boolean;
-  ring?: boolean;
-}) {
+export function Avatar({ member, size = 40 }: { member: Pick<GymMember, 'emoji' | 'color'>; size?: number }) {
   return (
-    <span className="relative inline-grid shrink-0 place-items-center" style={{ width: size, height: size }}>
-      {live && (
-        <motion.span
-          className="absolute inset-0 rounded-full"
-          style={{ background: member.color }}
-          animate={{ scale: [1, 1.45], opacity: [0.45, 0] }}
-          transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
-        />
-      )}
-      <span
-        className="relative grid h-full w-full place-items-center rounded-full"
-        style={{
-          background: `radial-gradient(circle at 30% 25%, ${member.color}55, ${member.color}18 70%)`,
-          boxShadow: ring ? `0 0 0 2px #060708, 0 0 0 4px ${member.color}` : `inset 0 0 0 1px ${member.color}55`,
-          fontSize: size * 0.48,
-        }}
-        aria-hidden="true"
-      >
-        {member.emoji}
-      </span>
+    <span
+      className="inline-grid shrink-0 place-items-center rounded-full"
+      style={{
+        width: size,
+        height: size,
+        fontSize: size * 0.5,
+        background: `radial-gradient(circle at 30% 25%, ${member.color}55, ${member.color}1a 70%)`,
+        boxShadow: `inset 0 0 0 1.5px ${member.color}66`,
+      }}
+      aria-hidden="true"
+    >
+      {member.emoji}
     </span>
   );
 }
 
-/** Circular progress ring (0–1) with a glowing stroke. */
-export function Ring({
-  value,
-  size = 280,
-  stroke = 14,
-  color = LIME,
-  children,
-}: {
-  value: number;
-  size?: number;
-  stroke?: number;
-  color?: string;
-  children?: ReactNode;
-}) {
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const v = Math.max(0, Math.min(1, value));
-  return (
-    <div className="relative grid place-items-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90" style={{ overflow: 'visible' }} aria-hidden="true">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke} />
-        {/* Soft halo: a wide translucent copy of the arc — no SVG filter, so
-            nothing can clip the glow into a visible box. */}
-        {[stroke * 3.2, stroke * 2].map((w, i) => (
-          <motion.circle
-            key={w}
-            cx={size / 2}
-            cy={size / 2}
-            r={r}
-            fill="none"
-            stroke={color}
-            strokeOpacity={i === 0 ? 0.07 : 0.12}
-            strokeWidth={w}
-            strokeLinecap="round"
-            strokeDasharray={c}
-            initial={false}
-            animate={{ strokeDashoffset: c * (1 - v) }}
-            transition={{ type: 'spring', damping: 30, stiffness: 60 }}
-          />
-        ))}
-        <motion.circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke={color}
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={c}
-          initial={false}
-          animate={{ strokeDashoffset: c * (1 - v) }}
-          transition={{ type: 'spring', damping: 30, stiffness: 60 }}
-        />
-      </svg>
-      <div className="absolute inset-0 grid place-items-center">{children}</div>
-    </div>
+/** Exercise machine photo, or a placeholder when none was taken yet. */
+export function Thumb({ exercise, size = 64, className }: { exercise: Exercise | null; size?: number; className?: string }) {
+  return exercise?.hasImage ? (
+    <img
+      src={imageUrl(exercise)}
+      alt=""
+      loading="lazy"
+      className={cn('shrink-0 rounded-2xl object-cover', className)}
+      style={{ width: size, height: size }}
+    />
+  ) : (
+    <span
+      className={cn('grid shrink-0 place-items-center rounded-2xl bg-white/[0.06] text-white/25', className)}
+      style={{ width: size, height: size, fontSize: size * 0.42 }}
+      aria-hidden="true"
+    >
+      🏋️
+    </span>
   );
 }
 
-export function Empty({ icon, title, text, action }: { icon: string; title: string; text: string; action?: ReactNode }) {
-  return (
-    <div className="flex flex-col items-center px-6 py-14 text-center">
-      <motion.span
-        className="text-6xl"
-        animate={{ y: [0, -8, 0] }}
-        transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        {icon}
-      </motion.span>
-      <p className="mt-4 text-xl font-extrabold text-white">{title}</p>
-      <p className="mt-1.5 max-w-xs text-sm text-white/50">{text}</p>
-      {action && <div className="mt-6">{action}</div>}
-    </div>
-  );
-}
-
-/** Big pill button — the gym app's primary action style. */
 export function GymButton({
   children,
   onClick,
@@ -147,38 +65,148 @@ export function GymButton({
 }: {
   children: ReactNode;
   onClick?: () => void;
-  variant?: 'lime' | 'red' | 'ghost';
+  variant?: 'lime' | 'red' | 'ghost' | 'soft';
   disabled?: boolean;
   loading?: boolean;
   type?: 'button' | 'submit';
   className?: string;
 }) {
   const styles = {
-    lime: 'bg-[#d4ff3a] text-black shadow-[0_10px_40px_-10px_rgba(212,255,58,0.7)] hover:bg-[#e0ff6b]',
-    red: 'bg-[#ff3b5c] text-white shadow-[0_10px_40px_-10px_rgba(255,59,92,0.7)] hover:bg-[#ff5573]',
-    ghost: 'border border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.08]',
+    lime: 'bg-[#d4ff3a] text-black active:bg-[#c2ef22]',
+    red: 'bg-[#ff3b5c] text-white active:bg-[#e8304f]',
+    ghost: 'border border-white/10 bg-transparent text-white active:bg-white/[0.06]',
+    soft: 'bg-white/[0.07] text-white active:bg-white/[0.12]',
   }[variant];
   return (
     <motion.button
       type={type}
       onClick={onClick}
       disabled={disabled || loading}
-      whileTap={{ scale: 0.96 }}
+      whileTap={{ scale: 0.97 }}
       className={cn(
-        'inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full px-6 text-base font-extrabold transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+        'inline-flex min-h-[52px] select-none items-center justify-center gap-2 rounded-2xl px-5 text-[17px] font-bold transition-colors disabled:opacity-40',
         styles,
         className
       )}
     >
-      {loading ? (
-        <span className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-      ) : (
-        children
-      )}
+      {loading ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" /> : children}
     </motion.button>
   );
 }
 
-export function Label({ children }: { children: ReactNode }) {
-  return <p className="mb-2.5 text-sm font-bold text-white/45">{children}</p>;
+export function Empty({ icon, title, text, action }: { icon: string; title: string; text?: string; action?: ReactNode }) {
+  return (
+    <div className="flex flex-col items-center px-6 py-12 text-center">
+      <span className="text-5xl">{icon}</span>
+      <p className="mt-4 text-lg font-bold text-white">{title}</p>
+      {text && <p className="mt-1 max-w-xs text-[15px] text-white/50">{text}</p>}
+      {action && <div className="mt-5">{action}</div>}
+    </div>
+  );
+}
+
+export function SectionLabel({ children, action }: { children: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="mb-2.5 mt-7 flex items-center justify-between px-1">
+      <h2 className="text-[15px] font-bold text-white/50">{children}</h2>
+      {action}
+    </div>
+  );
+}
+
+/** A/B style segmented control. */
+export function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T;
+  options: { value: T; label: ReactNode }[];
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="flex rounded-2xl bg-white/[0.06] p-1">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          className={cn(
+            'relative flex-1 rounded-xl py-2.5 text-[15px] font-bold transition-colors',
+            value === o.value ? 'text-black' : 'text-white/60'
+          )}
+        >
+          {value === o.value && (
+            <motion.span layoutId={`seg-${options.map((x) => x.value).join('')}`} className="absolute inset-0 rounded-xl bg-[#d4ff3a]" transition={{ type: 'spring', damping: 28, stiffness: 380 }} />
+          )}
+          <span className="relative">{o.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** iOS-style bottom sheet. */
+export function Sheet({
+  open,
+  onClose,
+  title,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title?: string;
+  children: ReactNode;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open, onClose]);
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <div className="fixed inset-0 z-50" dir="rtl">
+          <motion.div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+          />
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+            className="absolute inset-x-0 bottom-0 mx-auto flex max-h-[92dvh] max-w-lg flex-col rounded-t-[28px] border-t border-white/10 bg-[#141518] sm:bottom-6 sm:rounded-[28px] sm:border"
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 32, stiffness: 340 }}
+          >
+            <div className="mx-auto mt-2.5 h-1.5 w-10 rounded-full bg-white/20" />
+            <div className="flex items-center justify-between px-5 pb-2 pt-3">
+              <h3 className="text-xl font-extrabold text-white">{title}</h3>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="סגירה"
+                className="grid h-9 w-9 place-items-center rounded-full bg-white/[0.08] text-white/70"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto overscroll-contain px-5 pb-[max(24px,env(safe-area-inset-bottom))] pt-2">{children}</div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
 }

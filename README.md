@@ -156,17 +156,34 @@ category, upcoming recurring payments, recent expenses); search + filters
 import. Data lives in `ExpenseProject`, `Expense` and `ExpenseCategory` tables
 (created automatically by `prisma db push` on deploy).
 
-### Gym tracker (`/gym`)
+### Gym app (`/gym`)
 
-A Hebrew (RTL), mobile-first workout tracker for a group of friends at
-**`/gym`**, unlocked with the shared `GYM_PASSWORD` (default `2026`). Each
-person picks themselves once per device, then starts/stops a live workout
-timer (optionally tagging the equipment), sees who is training right now,
-and competes on a weekly table (minutes per day, sessions, totals, medals;
-weeks start on Sunday). Includes manual logging for forgotten timers,
-history with delete, and member management. Sessions under a minute are
-discarded; a forgotten timer is capped at 5 hours. Data lives in
-`GymMember` and `GymWorkout` (created automatically on deploy).
+A Hebrew (RTL), iPhone-first strength-training log for a small group of
+friends, installable to the home screen (Safari → Share → *Add to Home
+Screen*; it then opens full-screen like a native app).
+
+- **Personal accounts** — each person signs in with their name + a 4-digit
+  PIN. Joining requires the group code (`GYM_PASSWORD`, default `2026`).
+- **Shared programs A and B** — unlimited exercises (name, sets, rep range,
+  notes, reorder), each with a photo of the actual machine taken from the
+  phone. Photos are compressed on-device and stored in the database
+  (Render's disk is ephemeral).
+- **Workouts** — start A or B (real date/time recorded), log weight + reps
+  per set, add/remove sets, mark sets done. Every exercise shows *your* sets
+  from last time, as placeholders and a one-tap copy. Everything autosaves;
+  an interrupted workout reopens where you left off, and edits made without
+  signal are kept on the phone and synced when the connection returns.
+- **Rest timer** — 60/90/120 s offered after each completed set.
+- **History & calendar** — your workouts set-by-set, plus a monthly
+  calendar showing when each person trained (colour per person).
+- **Progress** — totals, weekly/monthly counts, average per week, personal
+  records, and a working-weight chart per exercise; attendance comparison
+  between friends without exposing anyone's weights.
+
+Data: `GymMember`, `GymPlan`, `GymExercise`, `GymSession`, `GymSetLog`
+(`GymWorkout` is the unused legacy table from the first version, kept so
+deploys never need a destructive migration). Members from the first version
+keep their name and set a PIN on first sign-in using the group code.
 
 ### Why these exact commands?
 

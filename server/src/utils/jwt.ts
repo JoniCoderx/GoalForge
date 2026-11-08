@@ -45,16 +45,17 @@ export function verifyExpensesToken(token: string): boolean {
   }
 }
 
-/** Gym tracker session token, obtained by entering the group password. */
-export function signGymToken(): string {
-  return jwt.sign({ scope: 'gym' }, env.jwtSecret, { expiresIn: '30d' });
+/** Gym app personal session: identifies which member is signed in. */
+export function signGymToken(memberId: string): string {
+  return jwt.sign({ scope: 'gym', sub: memberId }, env.jwtSecret, { expiresIn: '180d' });
 }
 
-export function verifyGymToken(token: string): boolean {
+/** Returns the signed-in member id, or null for an invalid/expired token. */
+export function verifyGymToken(token: string): string | null {
   try {
-    const payload = jwt.verify(token, env.jwtSecret) as { scope?: string };
-    return payload.scope === 'gym';
+    const payload = jwt.verify(token, env.jwtSecret) as { scope?: string; sub?: string };
+    return payload.scope === 'gym' && typeof payload.sub === 'string' ? payload.sub : null;
   } catch {
-    return false;
+    return null;
   }
 }

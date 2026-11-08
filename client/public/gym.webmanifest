@@ -1,0 +1,17 @@
+{
+  "name": "GYM·LOG",
+  "short_name": "Gym",
+  "description": "מעקב אימונים זוגי — תוכניות A/B, סטים, משקלים והתקדמות",
+  "lang": "he",
+  "dir": "rtl",
+  "start_url": "/gym",
+  "scope": "/gym",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0b0d",
+  "theme_color": "#0a0b0d",
+  "icons": [
+    { "src": "/gym-icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/gym-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

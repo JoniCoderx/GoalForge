@@ -9,16 +9,3 @@ export function useNow(intervalMs = 1000): number {
   }, [intervalMs]);
   return now;
 }
-
-/** True when the viewport matches `query`, kept in sync on resize. */
-export function useMedia(query: string): boolean {
-  const [match, setMatch] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
-  useEffect(() => {
-    const mq = window.matchMedia(query);
-    const on = () => setMatch(mq.matches);
-    on();
-    mq.addEventListener('change', on);
-    return () => mq.removeEventListener('change', on);
-  }, [query]);
-  return match;
-}

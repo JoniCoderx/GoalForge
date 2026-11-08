@@ -242,25 +242,30 @@ model ExpenseCategory {
   createdAt DateTime @default(now())
 }
 
-// ─────────────── Friends' gym tracker (/gym) ───────────────
+// ─────────────── Gym app (/gym) ───────────────
 
+// A person using the gym app (personal login: name + PIN).
 model GymMember {
   id        String   @id @default(cuid())
   name      String   @unique
   emoji     String   @default("💪")
   color     String   @default("#22c55e")
+  pinHash   String   @default("") // empty = PIN not set yet (set on first login)
   createdAt DateTime @default(now())
 
   workouts GymWorkout[]
+  sessions GymSession[]
 }
 
+// Legacy timer-only log from the first version of /gym. Unused; kept so
+// deploys never need a destructive migration.
 model GymWorkout {
   id          String    @id @default(cuid())
   memberId    String
   equipment   String    @default("")
   notes       String    @default("")
   startedAt   DateTime
-  endedAt     DateTime? // null while the workout is live
+  endedAt     DateTime?
   durationMin Int       @default(0)
   createdAt   DateTime  @default(now())
 
@@ -269,4 +274,75 @@ model GymWorkout {
   @@index([memberId])
   @@index([startedAt])
   @@index([endedAt])
+}
+
+// Shared training programs — exactly two: "A" and "B".
+model GymPlan {
+  id        String   @id @default(cuid())
+  key       String   @unique // "A" | "B"
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  exercises GymExercise[]
+}
+
+model GymExercise {
+  id           String   @id @default(cuid())
+  planId       String
+  name         String
+  sets         Int      @default(3)
+  repsMin      Int      @default(8)
+  repsMax      Int      @default(12)
+  notes        String   @default("")
+  position     Int      @default(0)
+  // Machine photo, stored in the DB (Render's disk is ephemeral).
+  image        Bytes?
+  imageType    String?
+  imageVersion Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  plan GymPlan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  logs GymSetLog[]
+
+  @@index([planId])
+}
+
+// One visit to the gym by one person. endedAt = null while in progress.
+model GymSession {
+  id        String    @id @default(cuid())
+  memberId  String
+  planKey   String
+  planName  String    @default("")
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  createdAt DateTime  @default(now())
+
+  member GymMember   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  sets   GymSetLog[]
+
+  @@index([memberId])
+  @@index([startedAt])
+}
+
+// A single logged set. Exercise name is snapshotted so history survives
+// edits or deletion of the exercise in the program.
+model GymSetLog {
+  id           String   @id @default(cuid())
+  sessionId    String
+  exerciseId   String?
+  exerciseName String
+  exerciseOrder Int     @default(0)
+  setIndex     Int
+  weight       Float?
+  reps         Int?
+  done         Boolean  @default(false)
+  updatedAt    DateTime @updatedAt
+
+  session  GymSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exercise GymExercise? @relation(fields: [exerciseId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId])
+  @@index([exerciseId])
 }
