@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { DAY_LABELS, fmtDate, fmtDuration, fmtKg, fmtTime, gym, sameDay, type GymMember } from '@/lib/gym';
 import { cn } from '@/lib/utils';
-import { Avatar, Card, Empty, SectionLabel, Sheet } from './shared';
+import { Avatar, Card, Empty, SectionLabel, Sheet, Thumb } from './shared';
 
 export function History({ me, members }: { me: GymMember; members: GymMember[] }) {
   const [month, setMonth] = useState(() => {
@@ -137,7 +137,9 @@ function SessionDetail({ id }: { id: string }) {
       </div>
       <div className="mt-4 space-y-3">
         {items.map((it) => (
-          <div key={it.key} className="rounded-2xl border border-white/[0.07] p-3">
+          <div key={it.key} className="flex gap-3 rounded-2xl border border-white/[0.07] p-3">
+            <Thumb exercise={it.exercise} size={52} />
+            <div className="min-w-0 flex-1">
             <p className="font-bold">{it.name}</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {it.sets.map((s, i) => (
@@ -145,6 +147,7 @@ function SessionDetail({ id }: { id: string }) {
                   {s.weight != null ? `${fmtKg(s.weight)}kg` : '–'} × {s.reps ?? '–'}
                 </span>
               ))}
+            </div>
             </div>
           </div>
         ))}

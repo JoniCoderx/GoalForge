@@ -69,41 +69,50 @@ export function Home({
         </motion.button>
       )}
 
-      {/* Week */}
-      <SectionLabel>השבוע</SectionLabel>
-      <div className="grid grid-cols-2 gap-3">
-        {[...(mine ? [mine] : []), ...others].map((r) => (
-          <Card key={r.member.id} className="flex items-center gap-3">
-            <Avatar member={r.member} size={40} />
-            <div className="min-w-0">
-              <p className="text-[28px] font-black leading-none tabular-nums">{r.week}</p>
-              <p className="mt-1 truncate text-[13px] text-white/50">{r.member.id === me.id ? 'אימונים שלי' : `אימונים של ${r.member.name}`}</p>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {/* Last workouts */}
-      <SectionLabel>אימון אחרון</SectionLabel>
-      <Card className="divide-y divide-white/[0.06] p-0">
-        {[...(mine ? [mine] : []), ...others].map((r) => (
-          <div key={r.member.id} className="flex items-center gap-3 px-4 py-3.5">
-            <Avatar member={r.member} size={36} />
-            <span className="flex-1 font-semibold">{r.member.id === me.id ? 'אני' : r.member.name}</span>
-            {r.last ? (
-              <span className="text-[15px] text-white/70">
-                {relativeDay(r.last.startedAt)} · <b className="text-white">{r.last.planKey}</b>
-              </span>
-            ) : (
-              <span className="text-[15px] text-white/35">עוד לא התאמן</span>
-            )}
-          </div>
-        ))}
-      </Card>
+      {/* The crew: this week + last workout, one card per person */}
+      <SectionLabel>החבר׳ה</SectionLabel>
+      {rows.length === 0 ? (
+        <div className="space-y-2.5">
+          {[0, 1].map((i) => (
+            <div key={i} className="h-[76px] animate-pulse rounded-[24px] bg-white/[0.04]" />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {[...(mine ? [mine] : []), ...others].map((r) => {
+            const isMe = r.member.id === me.id;
+            return (
+              <Card key={r.member.id} className="flex items-center gap-3.5 py-3.5">
+                <Avatar member={r.member} size={46} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[17px] font-bold">{isMe ? 'אני' : r.member.name}</p>
+                  <p className="truncate text-[14px] text-white/50">
+                    {r.last ? (
+                      <>
+                        אחרון: {relativeDay(r.last.startedAt)} · אימון {r.last.planKey}
+                      </>
+                    ) : (
+                      'עוד לא התאמן'
+                    )}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[26px] font-black leading-none tabular-nums" style={{ color: r.week ? r.member.color : 'rgba(255,255,255,0.3)' }}>
+                    {r.week}
+                  </p>
+                  <p className="mt-1 text-[11px] font-semibold text-white/40">השבוע</p>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       {/* Programs */}
       <SectionLabel>תוכניות האימון</SectionLabel>
       <div className="grid grid-cols-2 gap-3">
+        {plans.length === 0 &&
+          [0, 1].map((i) => <div key={i} className="h-[112px] animate-pulse rounded-[24px] bg-white/[0.04]" />)}
         {plans.map((p) => (
           <Card key={p.key} onClick={() => onOpenPlan(p.key)} className="min-h-[112px]">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/[0.08] text-xl font-black">{p.key}</span>

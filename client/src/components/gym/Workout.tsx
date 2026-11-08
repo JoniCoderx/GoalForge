@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { Check, ChevronRight, CloudOff, Copy, Minus, Plus } from 'lucide-react';
 import { ApiError } from '@/lib/api';
-import { fmtClock, fmtKg, gym, relativeDay, repsRange, type SessionItem, type SetEntry } from '@/lib/gym';
+import { fmtClock, fmtKg, gym, imageUrl, relativeDay, repsRange, type Exercise, type SessionItem, type SetEntry } from '@/lib/gym';
 import { useNow } from '@/lib/useNow';
 import { cn } from '@/lib/utils';
 import { GymButton, Sheet, Thumb } from './shared';
@@ -32,6 +32,16 @@ const emptyRow = (): Row => ({ w: '', r: '', done: false });
 
 const backupKey = (id: string) => `gym_backup_${id}`;
 
+/** iPhone keyboard "next": weight → reps → next set's weight. */
+function focusNext(el: HTMLInputElement) {
+  const all = Array.from(document.querySelectorAll<HTMLInputElement>('input[data-setinput]'));
+  const next = all[all.indexOf(el) + 1];
+  if (next) next.focus();
+  else el.blur();
+}
+
+const maxWeight = (sets: { weight: number | null }[]) => Math.max(0, ...sets.map((s) => s.weight ?? 0));
+
 export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string; onMinimize: () => void; onEnded: (discarded: boolean) => void }) {
   const qc = useQueryClient();
   const now = useNow(1000);
@@ -48,6 +58,7 @@ export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string;
   const [finishing, setFinishing] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [zoom, setZoom] = useState<Exercise | null>(null);
 
   const dirty = useRef(new Set<string>());
   const timers = useRef(new Map<string, number>());
@@ -202,6 +213,21 @@ export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string;
   const session = data?.session;
   const doneSets = draft ? Object.values(draft).flat().filter((r) => r.done).length : 0;
   const totalSets = draft ? Object.values(draft).flat().length : 0;
+  const allDone = totalSets > 0 && doneSets === totalSets;
+
+  // What got better vs last time — shown when finishing.
+  const improvements = useMemo(() => {
+    if (!draft) return [];
+    return items.flatMap((it) => {
+      const done = (draft[it.key] ?? []).filter((r) => r.done).map(toEntry);
+      if (!it.previous || done.length === 0) return [];
+      const kg = maxWeight(done) - maxWeight(it.previous.sets);
+      const reps = done.reduce((a, s) => a + (s.reps ?? 0), 0) - it.previous.sets.reduce((a, s) => a + (s.reps ?? 0), 0);
+      if (kg > 0) return [{ name: it.name, text: `\u2066+${fmtKg(kg)}\u2069 ק״ג` }];
+      if (kg === 0 && reps > 0) return [{ name: it.name, text: `\u2066+${reps}\u2069 חזרות` }];
+      return [];
+    });
+  }, [draft, items]);
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-[#0a0b0d]" dir="rtl">
@@ -217,7 +243,11 @@ export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string;
               {session ? fmtClock(now - new Date(session.startedAt).getTime()) : '--:--'}
             </p>
           </div>
-          <GymButton onClick={() => setFinishing(true)} className="min-h-[40px] rounded-xl px-4 text-[15px]" disabled={!session}>
+          <GymButton
+            onClick={() => setFinishing(true)}
+            className={cn('min-h-[40px] rounded-xl px-4 text-[15px]', allDone && 'animate-pulse shadow-[0_0_24px_rgba(212,255,58,0.6)]')}
+            disabled={!session}
+          >
             סיום
           </GymButton>
         </div>
@@ -274,6 +304,7 @@ export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string;
                 rows={draft?.[it.key] ?? []}
                 onRows={(rows) => update(it.key, rows)}
                 onSetDone={() => setRestPrompt((n) => n + 1)}
+                onZoom={setZoom}
               />
             ))}
           </div>
@@ -297,6 +328,19 @@ export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string;
               <p className="text-[13px] text-white/50">משך האימון</p>
             </div>
           </div>
+          {improvements.length > 0 && (
+            <div className="rounded-2xl border border-[#d4ff3a]/25 bg-[#d4ff3a]/[0.06] p-4">
+              <p className="font-bold text-[#d4ff3a]">🎉 השתפרת מהפעם הקודמת</p>
+              <ul className="mt-2 space-y-1.5">
+                {improvements.map((x) => (
+                  <li key={x.name} className="flex items-center justify-between gap-3 text-[15px]">
+                    <span className="truncate text-white/80">{x.name}</span>
+                    <span className="shrink-0 font-black text-[#d4ff3a]">{x.text}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <GymButton className="w-full" loading={busy} onClick={finish}>
             <Check className="h-5 w-5" /> סיום ושמירה
           </GymButton>
@@ -322,6 +366,20 @@ export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string;
           )}
         </div>
       </Sheet>
+
+      {/* Full-size machine photo */}
+      {zoom && (
+        <button
+          type="button"
+          aria-label="סגירת התמונה"
+          onClick={() => setZoom(null)}
+          className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/95 p-4 pt-[max(16px,env(safe-area-inset-top))]"
+        >
+          <img src={imageUrl(zoom)} alt={zoom.name} className="max-h-[80dvh] w-full rounded-3xl object-contain" />
+          <p className="mt-4 text-xl font-bold">{zoom.name}</p>
+          <p className="mt-1 text-[14px] text-white/45">הקישו לסגירה</p>
+        </button>
+      )}
     </div>
   );
 }
@@ -331,11 +389,13 @@ function ExerciseCard({
   rows,
   onRows,
   onSetDone,
+  onZoom,
 }: {
   item: SessionItem;
   rows: Row[];
   onRows: (rows: Row[]) => void;
   onSetDone: () => void;
+  onZoom: (e: Exercise) => void;
 }) {
   const ex = item.exercise;
   const prev = item.previous;
@@ -376,7 +436,13 @@ function ExerciseCard({
   return (
     <section className={cn('rounded-[24px] border p-3.5 transition-colors', allDone ? 'border-[#d4ff3a]/30 bg-[#d4ff3a]/[0.04]' : 'border-white/[0.08] bg-white/[0.035]')}>
       <div className="flex gap-3">
-        <Thumb exercise={ex} size={76} />
+        {ex?.hasImage ? (
+          <button type="button" onClick={() => onZoom(ex)} aria-label={`הגדלת התמונה של ${ex.name}`} className="shrink-0 rounded-2xl active:opacity-80">
+            <Thumb exercise={ex} size={76} />
+          </button>
+        ) : (
+          <Thumb exercise={ex} size={76} />
+        )}
         <div className="min-w-0 flex-1">
           <h3 className="text-[19px] font-extrabold leading-tight">{item.name}</h3>
           {ex && (
@@ -428,6 +494,8 @@ function ExerciseCard({
                   aria-label={`משקל סט ${i + 1}`}
                   inputMode="decimal"
                   enterKeyHint="next"
+                  data-setinput
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), focusNext(e.currentTarget))}
                   disabled={!editable}
                   value={r.w}
                   placeholder={p?.weight != null ? fmtKg(p.weight) : 'ק״ג'}
@@ -440,7 +508,9 @@ function ExerciseCard({
                 <input
                   aria-label={`חזרות סט ${i + 1}`}
                   inputMode="numeric"
-                  enterKeyHint="done"
+                  enterKeyHint="next"
+                  data-setinput
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), focusNext(e.currentTarget))}
                   disabled={!editable}
                   value={r.r}
                   placeholder={p?.reps != null ? String(p.reps) : 'חזרות'}
