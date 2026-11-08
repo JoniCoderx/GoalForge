@@ -207,14 +207,35 @@ router.get(
     const start = new Date(String(req.query.start ?? ''));
     if (Number.isNaN(start.getTime())) throw badRequest('Invalid week start');
     const end = new Date(start.getTime() + 7 * DAY_MS);
+    // Client's timezone offset (Date#getTimezoneOffset, minutes) so "a day"
+    // for streaks means the friends' local calendar day, not UTC.
+    const tz = Math.max(-840, Math.min(840, Number(req.query.tz) || 0));
+    const dayKey = (d: Date) => Math.floor((d.getTime() - tz * 60000) / DAY_MS);
 
-    const [members, workouts] = await Promise.all([
+    const [members, workouts, recent] = await Promise.all([
       prisma.gymMember.findMany({ orderBy: { createdAt: 'asc' } }),
       prisma.gymWorkout.findMany({
         where: { endedAt: { not: null }, startedAt: { gte: start, lt: end } },
         select: { memberId: true, startedAt: true, durationMin: true },
       }),
+      prisma.gymWorkout.findMany({
+        where: { endedAt: { not: null }, startedAt: { gte: new Date(Date.now() - 90 * DAY_MS) } },
+        select: { memberId: true, startedAt: true },
+      }),
     ]);
+
+    /** Consecutive training days ending today (or yesterday — today isn't over yet). */
+    const today = dayKey(new Date());
+    const streakOf = (memberId: string) => {
+      const days = new Set(recent.filter((w) => w.memberId === memberId).map((w) => dayKey(w.startedAt)));
+      let d = days.has(today) ? today : today - 1;
+      let streak = 0;
+      while (days.has(d)) {
+        streak++;
+        d--;
+      }
+      return streak;
+    };
 
     const rows = members.map((m) => {
       const mine = workouts.filter((w) => w.memberId === m.id);
@@ -228,6 +249,7 @@ router.get(
         sessions: mine.length,
         minutes: mine.reduce((a, w) => a + w.durationMin, 0),
         activeDays: daily.filter((d) => d > 0).length,
+        streak: streakOf(m.id),
         daily,
       };
     });

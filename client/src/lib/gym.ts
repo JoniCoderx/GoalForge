@@ -26,6 +26,7 @@ export interface GymWeekRow {
   sessions: number;
   minutes: number;
   activeDays: number;
+  streak: number;
   daily: number[];
 }
 
@@ -104,7 +105,8 @@ export const gymApi = {
   log: (data: { memberId: string; startedAt: string; durationMin: number; equipment?: string; notes?: string }) =>
     send<{ workout: GymWorkout }>('POST', '/workouts', data),
   removeWorkout: (id: string) => send<{ ok: boolean }>('DELETE', `/workouts/${id}`),
-  week: (start: Date) => request<GymWeek>(`/week?start=${encodeURIComponent(start.toISOString())}`),
+  week: (start: Date) =>
+    request<GymWeek>(`/week?start=${encodeURIComponent(start.toISOString())}&tz=${new Date().getTimezoneOffset()}`),
 };
 
 /* ─────────────── Helpers ─────────────── */
@@ -123,6 +125,18 @@ export const EQUIPMENT: { key: string; label: string; icon: string }[] = [
 
 export const MEMBER_EMOJIS = ['💪', '🔥', '⚡', '🦁', '🐺', '🚀', '🏆', '🥊', '🐯', '🦅', '🏃', '😎'];
 export const MEMBER_COLORS = ['#22c55e', '#0ea5e9', '#a855f7', '#f59e0b', '#f43f5e', '#14b8a6', '#eab308', '#6366f1'];
+
+/** Shared text-input styling for the gym app. */
+export const GYM_INPUT =
+  'w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-base text-white placeholder:text-white/30 transition focus:border-[#d4ff3a]/60 focus:bg-white/[0.06] focus:outline-none [color-scheme:dark]';
+
+/** Neon accent for the gym app. */
+export const LIME = '#d4ff3a';
+
+/** Personal weekly target in minutes (WHO guideline: 150 min/week). */
+export const WEEKLY_GOAL_MIN = 150;
+/** A session's ring fills over this many minutes. */
+export const SESSION_GOAL_MIN = 60;
 
 export const DAY_LABELS = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
 

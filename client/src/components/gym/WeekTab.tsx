@@ -1,15 +1,19 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronRight, ChevronLeft } from 'lucide-react';
-import { DAY_LABELS, addDays, fmtMinutes, gymApi, weekStart } from '@/lib/gym';
+import { motion } from 'framer-motion';
+import { ChevronRight, ChevronLeft, Flame } from 'lucide-react';
+import { DAY_LABELS, LIME, WEEKLY_GOAL_MIN, addDays, fmtMinutes, gymApi, weekStart, type GymWeekRow } from '@/lib/gym';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { Avatar, Empty, Panel, SectionTitle, Stat } from './shared';
+import { Avatar, Card, Empty, GymButton } from './shared';
 
-const MEDALS = ['🥇', '🥈', '🥉'];
+const PODIUM = [
+  { place: 2, medal: '🥈', h: 'h-24', tone: 'from-slate-300/25' },
+  { place: 1, medal: '🥇', h: 'h-36', tone: 'from-[#d4ff3a]/35' },
+  { place: 3, medal: '🥉', h: 'h-16', tone: 'from-orange-400/25' },
+];
 
-export function WeekTab() {
+export function WeekTab({ meId }: { meId: string | null }) {
   const [offset, setOffset] = useState(0);
   const start = useMemo(() => addDays(weekStart(), offset * 7), [offset]);
   const end = addDays(start, 6);
@@ -21,107 +25,223 @@ export function WeekTab() {
   });
 
   const rows = data?.rows ?? [];
-  const max = Math.max(1, ...rows.flatMap((r) => r.daily));
+  const ranked = rows.filter((r) => r.minutes > 0);
   const todayIdx = offset === 0 ? new Date().getDay() : -1;
-  const range = `${start.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })} – ${end.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}`;
-  const leader = rows.find((r) => r.minutes > 0);
+  const fmt = (d: Date) => d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
+  const teamGoal = Math.max(1, rows.length * WEEKLY_GOAL_MIN);
+  const teamPct = Math.min(1, (data?.totals.minutes ?? 0) / teamGoal);
+  const title = offset === 0 ? 'השבוע' : offset === -1 ? 'שבוע שעבר' : `לפני ${-offset} שבועות`;
 
   return (
     <div className="space-y-6">
-      <Panel>
-        <SectionTitle
-          title={offset === 0 ? 'השבוע' : offset === -1 ? 'שבוע שעבר' : 'שבוע'}
-          subtitle={range}
-          action={
-            <div className="flex items-center gap-2">
-              <Button variant="secondary" size="sm" onClick={() => setOffset(offset - 1)} aria-label="שבוע קודם">
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              <Button variant="secondary" size="sm" disabled={offset >= 0} onClick={() => setOffset(offset + 1)} aria-label="שבוע הבא">
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              {offset !== 0 && (
-                <Button variant="ghost" size="sm" onClick={() => setOffset(0)}>
-                  היום
-                </Button>
-              )}
-            </div>
-          }
-        />
-
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <Stat label="אימונים השבוע" value={data?.totals.sessions ?? '—'} />
-          <Stat label="זמן אימון כולל" value={data ? fmtMinutes(data.totals.minutes) : '—'} accent="#0ea5e9" />
-          <Stat label="מוביל/ה השבוע" value={leader ? `${leader.member.emoji} ${leader.member.name}` : '—'} accent="#f59e0b" />
+      {/* Header + nav */}
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-white/50" dir="ltr">
+            {fmt(start)} – {fmt(end)}
+          </p>
+          <h1 className="mt-1 text-4xl font-black tracking-tight sm:text-5xl">{title}</h1>
         </div>
-      </Panel>
+        <div className="flex items-center gap-2">
+          {offset !== 0 && (
+            <button type="button" onClick={() => setOffset(0)} className="rounded-full px-3 py-2 text-sm font-bold text-[#d4ff3a]">
+              היום
+            </button>
+          )}
+          <NavBtn label="שבוע קודם" onClick={() => setOffset(offset - 1)}>
+            <ChevronRight className="h-5 w-5" />
+          </NavBtn>
+          <NavBtn label="שבוע הבא" disabled={offset >= 0} onClick={() => setOffset(offset + 1)}>
+            <ChevronLeft className="h-5 w-5" />
+          </NavBtn>
+        </div>
+      </div>
 
-      <Panel className="overflow-hidden p-0 sm:p-0">
-        {isLoading ? (
-          <div className="space-y-3 p-5">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-14 rounded-xl" />
-            ))}
-          </div>
-        ) : isError ? (
-          <div className="p-6">
-            <Empty icon="⚠️" title="לא הצלחנו לטעון את הטבלה" text="בדקו את החיבור ונסו שוב." action={<Button onClick={() => refetch()}>נסו שוב</Button>} />
-          </div>
-        ) : rows.length === 0 ? (
-          <div className="p-6">
-            <Empty icon="📋" title="אין עדיין חברים" text="הוסיפו חברים בלשונית ׳חברים׳." />
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="border-b border-white/10 text-xs text-slate-400">
-                  <th className="px-4 py-3 text-start font-medium">#</th>
-                  <th className="px-2 py-3 text-start font-medium">חבר/ה</th>
-                  {DAY_LABELS.map((d, i) => (
-                    <th key={d} className={cn('px-1 py-3 text-center font-medium', i === todayIdx && 'text-brand-300')}>
-                      {d}
-                    </th>
-                  ))}
-                  <th className="px-2 py-3 text-center font-medium">אימונים</th>
-                  <th className="px-4 py-3 text-end font-medium">סה״כ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, i) => (
-                  <tr key={r.member.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02]">
-                    <td className="px-4 py-3 text-lg">{r.minutes > 0 ? MEDALS[i] ?? <span className="text-sm text-slate-500">{i + 1}</span> : <span className="text-sm text-slate-600">—</span>}</td>
-                    <td className="px-2 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <Avatar member={r.member} size="sm" />
-                        <span className="font-semibold text-white">{r.member.name}</span>
-                      </div>
-                    </td>
-                    {r.daily.map((m, d) => (
-                      <td key={d} className="px-1 py-3">
-                        <div
-                          title={m ? fmtMinutes(m) : 'ללא אימון'}
-                          className={cn(
-                            'mx-auto grid h-9 w-9 place-items-center rounded-lg text-[11px] font-semibold tabular-nums',
-                            m ? 'text-white' : 'bg-white/[0.03] text-transparent',
-                            d === todayIdx && 'ring-1 ring-brand-400/40'
+      {isLoading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-64 rounded-[28px]" />
+          <Skeleton className="h-40 rounded-[28px]" />
+        </div>
+      ) : isError ? (
+        <Card>
+          <Empty icon="⚠️" title="לא הצלחנו לטעון" text="בדקו את החיבור ונסו שוב." action={<GymButton onClick={() => refetch()}>נסו שוב</GymButton>} />
+        </Card>
+      ) : rows.length === 0 ? (
+        <Card>
+          <Empty icon="🏆" title="אין עדיין חבר׳ה" text="הוסיפו חברים כדי להתחיל להתחרות." />
+        </Card>
+      ) : (
+        <>
+          {/* Podium */}
+          <Card glow={`${LIME}55`}>
+            {ranked.length === 0 ? (
+              <Empty icon="🏁" title="הדירוג עוד פתוח" text="מי שמתאמן ראשון השבוע — עולה ראשון לפודיום." />
+            ) : (
+              <div className="flex items-end justify-center gap-3 pt-4 sm:gap-6">
+                {PODIUM.map(({ place, medal, h, tone }, i) => {
+                  const r = ranked[place - 1];
+                  return (
+                    <motion.div
+                      key={place}
+                      className="flex w-28 flex-col items-center sm:w-36"
+                      initial={{ opacity: 0, y: 30 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 + i * 0.1, type: 'spring', damping: 18 }}
+                    >
+                      {r ? (
+                        <>
+                          {place === 1 && (
+                            <motion.span className="mb-1 text-3xl" animate={{ y: [0, -5, 0] }} transition={{ duration: 2, repeat: Infinity }}>
+                              👑
+                            </motion.span>
                           )}
-                          style={m ? { background: `${r.member.color}${Math.round(40 + (m / max) * 160).toString(16).padStart(2, '0')}` } : undefined}
-                        >
-                          {m || '·'}
-                        </div>
-                      </td>
-                    ))}
-                    <td className="px-2 py-3 text-center font-semibold tabular-nums text-white">{r.sessions}</td>
-                    <td className="px-4 py-3 text-end font-semibold tabular-nums text-white">{fmtMinutes(r.minutes)}</td>
-                  </tr>
+                          <Avatar member={r.member} size={place === 1 ? 76 : 60} ring />
+                          <p className="mt-2 max-w-full truncate text-base font-extrabold">{r.member.name}</p>
+                          <p className="text-sm font-bold tabular-nums" style={{ color: place === 1 ? LIME : 'rgba(255,255,255,0.6)' }}>
+                            {fmtMinutes(r.minutes)}
+                          </p>
+                        </>
+                      ) : (
+                        <div className="mb-[52px] grid h-[60px] w-[60px] place-items-center rounded-full border border-dashed border-white/15 text-white/20">?</div>
+                      )}
+                      <div
+                        className={cn(
+                          'mt-3 grid w-full place-items-start justify-center rounded-t-2xl border-x border-t border-white/10 bg-gradient-to-b to-transparent pt-2 text-3xl',
+                          h,
+                          tone
+                        )}
+                      >
+                        {medal}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Team goal */}
+            <div className="mt-6 rounded-2xl bg-black/30 p-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-bold">יעד קבוצתי</span>
+                <span className="font-bold tabular-nums text-white/60">
+                  <span className="text-white">{data?.totals.minutes ?? 0}</span> / {teamGoal} דק׳
+                </span>
+              </div>
+              <div className="mt-2.5 h-3 overflow-hidden rounded-full bg-white/[0.06]">
+                <motion.div
+                  className="h-full rounded-full bg-[#d4ff3a] shadow-[0_0_20px_rgba(212,255,58,0.6)]"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${teamPct * 100}%` }}
+                  transition={{ duration: 1, ease: 'easeOut' }}
+                />
+              </div>
+              <p className="mt-2 text-xs text-white/40">
+                {data?.totals.sessions ?? 0} אימונים השבוע · {WEEKLY_GOAL_MIN} דק׳ לכל אחד
+              </p>
+            </div>
+          </Card>
+
+          {/* Full table */}
+          <Card className="p-3 sm:p-4">
+            <div className="flex items-center justify-between px-2 pb-3 pt-1">
+              <h2 className="text-xl font-extrabold">טבלה מלאה</h2>
+              <div className="flex gap-[5px] text-[10px] font-bold text-white/35 max-sm:hidden">
+                {DAY_LABELS.map((d, i) => (
+                  <span key={d} className={cn('w-6 text-center', i === todayIdx && 'text-[#d4ff3a]')}>
+                    {d}
+                  </span>
                 ))}
-              </tbody>
-            </table>
-            <p className="px-4 pb-4 pt-2 text-xs text-slate-500">המספרים בתאים = דקות אימון באותו יום</p>
-          </div>
-        )}
-      </Panel>
+              </div>
+            </div>
+            <ul className="space-y-2">
+              {rows.map((r, i) => (
+                <Row key={r.member.id} row={r} rank={r.minutes > 0 ? i + 1 : null} me={r.member.id === meId} todayIdx={todayIdx} delay={i * 0.04} />
+              ))}
+            </ul>
+          </Card>
+        </>
+      )}
     </div>
+  );
+}
+
+function Row({ row, rank, me, todayIdx, delay }: { row: GymWeekRow; rank: number | null; me: boolean; todayIdx: number; delay: number }) {
+  const goalPct = Math.min(1, row.minutes / WEEKLY_GOAL_MIN);
+  return (
+    <motion.li
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay }}
+      className={cn('rounded-2xl p-3', me ? 'bg-[#d4ff3a]/[0.07] ring-1 ring-[#d4ff3a]/25' : 'bg-white/[0.025]')}
+    >
+      <div className="flex items-center gap-3">
+        <span className="w-6 text-center text-sm font-black tabular-nums text-white/40">{rank ?? '–'}</span>
+        <Avatar member={row.member} size={42} />
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-2 truncate font-extrabold">
+            {row.member.name}
+            {me && <span className="rounded-full bg-[#d4ff3a] px-2 py-0.5 text-[10px] font-black text-black">אני</span>}
+            {row.streak >= 2 && (
+              <span className="flex items-center gap-0.5 rounded-full bg-orange-500/15 px-2 py-0.5 text-[11px] font-bold text-orange-300">
+                <Flame className="h-3 w-3" /> {row.streak}
+              </span>
+            )}
+          </p>
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+            <div className="h-full rounded-full" style={{ width: `${goalPct * 100}%`, background: row.member.color }} />
+          </div>
+        </div>
+        <Days daily={row.daily} color={row.member.color} todayIdx={todayIdx} className="max-sm:hidden" />
+        <div className="w-[76px] text-end">
+          <p className="text-base font-black tabular-nums">{fmtMinutes(row.minutes)}</p>
+          <p className="text-[11px] font-bold text-white/40">{row.sessions} אימונים</p>
+        </div>
+      </div>
+      <Days daily={row.daily} color={row.member.color} todayIdx={todayIdx} className="mt-3 justify-between ps-9 sm:hidden" labels />
+    </motion.li>
+  );
+}
+
+function Days({
+  daily,
+  color,
+  todayIdx,
+  className,
+  labels,
+}: {
+  daily: number[];
+  color: string;
+  todayIdx: number;
+  className?: string;
+  labels?: boolean;
+}) {
+  const max = Math.max(60, ...daily);
+  return (
+    <div className={cn('flex gap-[5px]', className)}>
+      {daily.map((m, d) => (
+        <div key={d} className="flex flex-col items-center gap-1">
+          <div
+            title={`${DAY_LABELS[d]}: ${m ? `${m} דק׳` : 'ללא אימון'}`}
+            className={cn('h-6 w-6 rounded-[7px]', d === todayIdx && 'ring-1 ring-white/50 ring-offset-1 ring-offset-[#0b0c0e]')}
+            style={{ background: m ? color : 'rgba(255,255,255,0.05)', opacity: m ? 0.35 + 0.65 * (m / max) : 1 }}
+          />
+          {labels && <span className={cn('text-[9px] font-bold', d === todayIdx ? 'text-[#d4ff3a]' : 'text-white/30')}>{DAY_LABELS[d]}</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function NavBtn({ children, label, onClick, disabled }: { children: React.ReactNode; label: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
+      className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-white transition hover:bg-white/[0.08] disabled:opacity-25"
+    >
+      {children}
+    </button>
   );
 }

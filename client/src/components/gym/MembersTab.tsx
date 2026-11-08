@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { Trash2, UserPlus } from 'lucide-react';
 import { ApiError } from '@/lib/api';
-import { MEMBER_COLORS, MEMBER_EMOJIS, gymApi, type GymMember } from '@/lib/gym';
+import { GYM_INPUT, MEMBER_COLORS, MEMBER_EMOJIS, gymApi, type GymMember } from '@/lib/gym';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
-import { Avatar, Empty, Panel, SectionTitle } from './shared';
+import { Avatar, Card, Empty, GymButton, Label } from './shared';
 
 export function MembersTab({ members, meId, onRemoved }: { members: GymMember[]; meId: string | null; onRemoved: (id: string) => void }) {
   const qc = useQueryClient();
@@ -30,7 +30,7 @@ export function MembersTab({ members, meId, onRemoved }: { members: GymMember[];
   const remove = useMutation({
     mutationFn: (id: string) => gymApi.removeMember(id),
     onSuccess: (_r, id) => {
-      toast.success('החבר/ה הוסר/ה');
+      toast.success('הוסר/ה מהקבוצה');
       setDeleting(null);
       onRemoved(id);
       qc.invalidateQueries({ queryKey: ['gym'] });
@@ -38,107 +38,120 @@ export function MembersTab({ members, meId, onRemoved }: { members: GymMember[];
     onError: () => toast.error('ההסרה נכשלה'),
   });
 
-  const preview: GymMember = { id: 'preview', name, emoji, color, createdAt: '' };
-
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-      <Panel>
-        <SectionTitle title="הוספת חבר/ה" />
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (name.trim()) add.mutate();
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <Avatar member={preview} size="lg" />
+    <div className="space-y-6">
+      <div>
+        <p className="text-sm font-medium text-white/50">{members.length} בקבוצה</p>
+        <h1 className="mt-1 text-4xl font-black tracking-tight sm:text-5xl">החבר׳ה</h1>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_1.15fr]">
+        <Card glow={`${color}66`}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (name.trim()) add.mutate();
+            }}
+          >
+            <div className="flex flex-col items-center">
+              <motion.div key={emoji + color} initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={{ type: 'spring', damping: 12 }}>
+                <Avatar member={{ emoji, color }} size={96} ring />
+              </motion.div>
+              <p className="mt-3 h-7 text-xl font-black">{name.trim() || 'חבר/ה חדש/ה'}</p>
+            </div>
             <input
-              className="input flex-1"
+              className={cn(GYM_INPUT, 'mt-5 text-center text-lg font-bold')}
               placeholder="שם"
               aria-label="שם"
               maxLength={40}
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
-          </div>
-          <div>
-            <p className="label">אימוג׳י</p>
-            <div className="flex flex-wrap gap-2">
-              {MEMBER_EMOJIS.map((em) => (
-                <button
-                  key={em}
-                  type="button"
-                  onClick={() => setEmoji(em)}
-                  className={cn('grid h-11 w-11 place-items-center rounded-xl border text-xl transition', emoji === em ? 'border-brand-400/60 bg-brand-500/15' : 'border-white/10 hover:border-white/25')}
-                  aria-label={`אימוג׳י ${em}`}
-                >
-                  {em}
-                </button>
-              ))}
+            <div className="mt-5">
+              <Label>אימוג׳י</Label>
+              <div className="grid grid-cols-6 gap-2">
+                {MEMBER_EMOJIS.map((em) => (
+                  <button
+                    key={em}
+                    type="button"
+                    onClick={() => setEmoji(em)}
+                    aria-label={`אימוג׳י ${em}`}
+                    className={cn(
+                      'grid aspect-square place-items-center rounded-2xl border text-2xl transition',
+                      emoji === em ? 'border-[#d4ff3a] bg-[#d4ff3a]/10' : 'border-white/[0.08] bg-white/[0.03] hover:border-white/20'
+                    )}
+                  >
+                    {em}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-          <div>
-            <p className="label">צבע</p>
-            <div className="flex flex-wrap gap-2">
-              {MEMBER_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setColor(c)}
-                  className={cn('h-10 w-10 rounded-full border-2 transition', color === c ? 'scale-110 border-white' : 'border-transparent')}
-                  style={{ background: c }}
-                  aria-label={`צבע ${c}`}
-                />
-              ))}
+            <div className="mt-5">
+              <Label>צבע</Label>
+              <div className="flex flex-wrap gap-2.5">
+                {MEMBER_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setColor(c)}
+                    aria-label={`צבע ${c}`}
+                    className={cn('h-10 w-10 rounded-full transition', color === c ? 'scale-110 ring-2 ring-white ring-offset-2 ring-offset-[#0b0c0e]' : 'opacity-70 hover:opacity-100')}
+                    style={{ background: c, boxShadow: color === c ? `0 0 20px ${c}` : undefined }}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-          <Button type="submit" className="w-full" loading={add.isPending} disabled={!name.trim()}>
-            <UserPlus className="h-4 w-4" /> הוספה
-          </Button>
-        </form>
-      </Panel>
+            <GymButton type="submit" loading={add.isPending} disabled={!name.trim()} className="mt-6 h-14 w-full">
+              <UserPlus className="h-5 w-5" /> הוספה לקבוצה
+            </GymButton>
+          </form>
+        </Card>
 
-      <Panel>
-        <SectionTitle title="החבר׳ה" subtitle={`${members.length} חברים בקבוצה`} />
-        {members.length === 0 ? (
-          <Empty icon="👥" title="הקבוצה ריקה" text="הוסיפו את החבר הראשון בטופס." />
-        ) : (
-          <ul className="space-y-2">
-            {members.map((m) => (
-              <li key={m.id} className="flex items-center gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-3">
-                <Avatar member={m} />
-                <span className="flex-1 truncate font-semibold text-white">
-                  {m.name}
-                  {m.id === meId && <span className="ms-2 rounded-md bg-brand-500/15 px-2 py-0.5 text-xs text-brand-300">אני</span>}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setDeleting(m)}
-                  className="grid h-10 w-10 place-items-center rounded-xl text-slate-500 hover:bg-rose-500/10 hover:text-rose-400"
-                  aria-label={`הסרת ${m.name}`}
+        <Card>
+          {members.length === 0 ? (
+            <Empty icon="👥" title="הקבוצה ריקה" text="הוסיפו את החבר הראשון." />
+          ) : (
+            <ul className="grid grid-cols-2 gap-3">
+              {members.map((m, i) => (
+                <motion.li
+                  key={m.id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: i * 0.04 }}
+                  className="relative flex flex-col items-center rounded-3xl border border-white/[0.07] p-4 pt-5"
+                  style={{ background: `linear-gradient(180deg, ${m.color}14, transparent)` }}
                 >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Panel>
+                  <button
+                    type="button"
+                    onClick={() => setDeleting(m)}
+                    className="absolute end-2 top-2 grid h-9 w-9 place-items-center rounded-full text-white/25 transition hover:bg-[#ff3b5c]/10 hover:text-[#ff5573]"
+                    aria-label={`הסרת ${m.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                  <Avatar member={m} size={60} />
+                  <p className="mt-2.5 max-w-full truncate font-extrabold">{m.name}</p>
+                  {m.id === meId && <span className="mt-1 rounded-full bg-[#d4ff3a] px-2.5 py-0.5 text-[10px] font-black text-black">אני</span>}
+                </motion.li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
 
       <Modal open={!!deleting} onClose={() => setDeleting(null)} title="להסיר מהקבוצה?" size="sm">
         {deleting && (
-          <div>
-            <p className="text-sm text-slate-300">
-              {deleting.name} יוסר/תוסר מהקבוצה <strong className="text-white">וכל האימונים שלו/ה יימחקו</strong>. אי אפשר לבטל.
+          <div dir="rtl">
+            <p className="text-white/70">
+              <b className="text-white">{deleting.name}</b> יוסר/תוסר מהקבוצה, <b className="text-[#ff5573]">וכל האימונים שלו/ה יימחקו</b>. אי אפשר לבטל.
             </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setDeleting(null)}>
+            <div className="mt-6 flex justify-end gap-2">
+              <GymButton variant="ghost" onClick={() => setDeleting(null)} className="min-h-[46px] px-5 text-sm">
                 ביטול
-              </Button>
-              <Button variant="danger" loading={remove.isPending} onClick={() => remove.mutate(deleting.id)}>
+              </GymButton>
+              <GymButton variant="red" loading={remove.isPending} onClick={() => remove.mutate(deleting.id)} className="min-h-[46px] px-5 text-sm">
                 הסרה
-              </Button>
+              </GymButton>
             </div>
           </div>
         )}
