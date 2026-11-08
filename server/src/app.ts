@@ -75,7 +75,7 @@ export function createApp(): Express {
   app.use('/api/auth/login', authLimiter);
   app.use('/api/auth/register', authLimiter);
   app.use('/api/console/auth', authLimiter);
-  app.use('/api/expenses/auth', authLimiter);
+  app.use(['/api/expenses/auth', '/api/gym/auth'], authLimiter);
 
   // Tighter limiter on cost-bearing AI generation endpoints.
   const aiLimiter = rateLimit({
@@ -100,7 +100,7 @@ export function createApp(): Express {
     standardHeaders: true,
     legacyHeaders: false,
     skip: (req) =>
-      Boolean(req.headers.authorization || req.headers['x-console-token'] || req.headers['x-expenses-token']),
+      Boolean(req.headers.authorization || req.headers['x-console-token'] || req.headers['x-expenses-token'] || req.headers['x-gym-token']),
     message: jsonMessage('Too many requests. Please try again later.'),
   });
   app.use('/api', limiter);

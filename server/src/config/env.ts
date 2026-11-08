@@ -41,6 +41,9 @@ export const env = {
   // Password gate for the internal expense tracker at /expenses.
   expensesPassword: str('EXPENSES_PASSWORD', '123456'),
 
+  // Shared group password for the friends' gym tracker at /gym.
+  gymPassword: str('GYM_PASSWORD', '2026'),
+
   openaiApiKey: str('OPENAI_API_KEY', ''),
   openaiModel: str('OPENAI_MODEL', 'gpt-4o-mini'),
 

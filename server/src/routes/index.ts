@@ -10,6 +10,7 @@ import analyticsRoutes from './analytics.routes.js';
 import adminRoutes from './admin.routes.js';
 import consoleRoutes from './console.routes.js';
 import expensesRoutes from './expenses.routes.js';
+import gymRoutes from './gym.routes.js';
 import { openaiStatus } from '../services/openai.service.js';
 
 const router = Router();
@@ -40,5 +41,6 @@ router.use('/analytics', analyticsRoutes);
 router.use('/admin', adminRoutes);
 router.use('/console', consoleRoutes);
 router.use('/expenses', expensesRoutes);
+router.use('/gym', gymRoutes);
 
 export default router;

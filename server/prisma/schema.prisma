@@ -241,3 +241,32 @@ model ExpenseCategory {
   isDefault Boolean  @default(false)
   createdAt DateTime @default(now())
 }
+
+// ─────────────── Friends' gym tracker (/gym) ───────────────
+
+model GymMember {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  emoji     String   @default("💪")
+  color     String   @default("#22c55e")
+  createdAt DateTime @default(now())
+
+  workouts GymWorkout[]
+}
+
+model GymWorkout {
+  id          String    @id @default(cuid())
+  memberId    String
+  equipment   String    @default("")
+  notes       String    @default("")
+  startedAt   DateTime
+  endedAt     DateTime? // null while the workout is live
+  durationMin Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  member GymMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@index([startedAt])
+  @@index([endedAt])
+}

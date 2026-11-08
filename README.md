@@ -156,6 +156,18 @@ category, upcoming recurring payments, recent expenses); search + filters
 import. Data lives in `ExpenseProject`, `Expense` and `ExpenseCategory` tables
 (created automatically by `prisma db push` on deploy).
 
+### Gym tracker (`/gym`)
+
+A Hebrew (RTL), mobile-first workout tracker for a group of friends at
+**`/gym`**, unlocked with the shared `GYM_PASSWORD` (default `2026`). Each
+person picks themselves once per device, then starts/stops a live workout
+timer (optionally tagging the equipment), sees who is training right now,
+and competes on a weekly table (minutes per day, sessions, totals, medals;
+weeks start on Sunday). Includes manual logging for forgotten timers,
+history with delete, and member management. Sessions under a minute are
+discarded; a forgotten timer is capped at 5 hours. Data lives in
+`GymMember` and `GymWorkout` (created automatically on deploy).
+
 ### Why these exact commands?
 
 - **`npm ci --include=dev`** — Render sets `NODE_ENV=production`, which makes a plain

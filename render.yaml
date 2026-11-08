@@ -43,6 +43,9 @@ services:
       # Password for the internal expense tracker at /expenses (change from default).
       - key: EXPENSES_PASSWORD
         sync: false
+      # Shared group password for the friends' gym tracker at /gym.
+      - key: GYM_PASSWORD
+        sync: false
       - key: NODE_VERSION
         value: "22"
 

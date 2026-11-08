@@ -22,6 +22,7 @@ const Settings = lazy(() => import('./pages/dashboard/Settings'));
 const Admin = lazy(() => import('./pages/dashboard/Admin'));
 const Console = lazy(() => import('./pages/Console'));
 const Expenses = lazy(() => import('./pages/Expenses'));
+const Gym = lazy(() => import('./pages/Gym'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 function Protected({ children, adminOnly }: { children: JSX.Element; adminOnly?: boolean }) {
@@ -61,6 +62,9 @@ export default function App() {
 
         {/* Internal expense tracker — password-gated, isolated from the app. */}
         <Route path="/expenses" element={<Expenses />} />
+
+        {/* Friends' gym tracker — group-password gated, Hebrew RTL. */}
+        <Route path="/gym" element={<Gym />} />
 
         <Route
           path="/app"

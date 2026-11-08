@@ -44,3 +44,17 @@ export function verifyExpensesToken(token: string): boolean {
     return false;
   }
 }
+
+/** Gym tracker session token, obtained by entering the group password. */
+export function signGymToken(): string {
+  return jwt.sign({ scope: 'gym' }, env.jwtSecret, { expiresIn: '30d' });
+}
+
+export function verifyGymToken(token: string): boolean {
+  try {
+    const payload = jwt.verify(token, env.jwtSecret) as { scope?: string };
+    return payload.scope === 'gym';
+  } catch {
+    return false;
+  }
+}
