@@ -45,11 +45,12 @@ const maxWeight = (sets: { weight: number | null }[]) => Math.max(0, ...sets.map
 export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string; onMinimize: () => void; onEnded: (discarded: boolean) => void }) {
   const qc = useQueryClient();
   const now = useNow(1000);
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['gym', 'session', sessionId],
     queryFn: () => gym.session(sessionId),
     refetchOnWindowFocus: false,
     staleTime: Infinity,
+    retry: (n, e) => !(e instanceof ApiError && e.status === 404) && n < 2,
   });
 
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -66,6 +67,20 @@ export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string;
   draftRef.current = draft;
 
   const items = useMemo(() => data?.items ?? [], [data]);
+
+  // Finished or cancelled on another device — close instead of an error loop.
+  useEffect(() => {
+    if (isError && error instanceof ApiError && error.status === 404) {
+      try {
+        localStorage.removeItem(backupKey(sessionId));
+      } catch {
+        /* ignore */
+      }
+      qc.invalidateQueries({ queryKey: ['gym'] });
+      toast('האימון כבר הסתיים או בוטל', { icon: 'ℹ️' });
+      onEnded(true);
+    }
+  }, [isError, error, sessionId, qc, onEnded]);
 
   /* ── Initialise from server, then overlay any unsynced local backup ── */
   useEffect(() => {

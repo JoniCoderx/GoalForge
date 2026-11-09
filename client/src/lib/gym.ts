@@ -23,6 +23,7 @@ export interface Exercise {
   position: number;
   hasImage: boolean;
   imageVersion: number;
+  imageKey: string | null;
 }
 
 export interface Plan {
@@ -202,8 +203,8 @@ export const gym = {
   stats: () => request<{ total: number; exercises: ExerciseStats[] }>('/stats'),
 };
 
-export function imageUrl(e: Pick<Exercise, 'id' | 'imageVersion'>): string {
-  return `/api/gym/exercises/${e.id}/image?v=${e.imageVersion}&t=${encodeURIComponent(getGymToken() ?? '')}`;
+export function imageUrl(e: Pick<Exercise, 'id' | 'imageVersion' | 'imageKey'>): string {
+  return `/api/gym/exercises/${e.id}/image?v=${e.imageVersion}&k=${encodeURIComponent(e.imageKey ?? '')}`;
 }
 
 /* ─────────────── Photos ─────────────── */

@@ -3,11 +3,10 @@ import { prisma } from '../lib/prisma.js';
 import { verifyGymToken } from '../utils/jwt.js';
 import { unauthorized } from '../utils/http.js';
 
-/** Read the gym token from the header, or `?t=` for <img> requests that can't send headers. */
+/** Read the gym token from the request header (never from the URL). */
 export function gymTokenFrom(req: Request): string | null {
   const header = req.headers['x-gym-token'];
-  if (typeof header === 'string' && header) return header;
-  return typeof req.query.t === 'string' && req.query.t ? req.query.t : null;
+  return typeof header === 'string' && header ? header : null;
 }
 
 /** Requires a signed-in gym member; exposes their id as `res.locals.memberId`. */

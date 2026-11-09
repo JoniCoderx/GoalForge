@@ -1,5 +1,5 @@
 import { Router, type Response } from 'express';
-import { timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import type { GymExercise, GymSetLog } from '@prisma/client';
@@ -31,6 +31,14 @@ const memberDto = (m: { id: string; name: string; emoji: string; color: string }
   color: m.color,
 });
 
+/**
+ * Photo URLs are signed per image+version instead of carrying the login
+ * token (URLs end up in proxy/request logs; a leaked signature only reveals
+ * that one machine photo).
+ */
+const imageSig = (id: string, version: number) =>
+  createHmac('sha256', env.jwtSecret).update(`gym-img:${id}:${version}`).digest('base64url').slice(0, 32);
+
 const exerciseDto = (e: GymExercise) => ({
   id: e.id,
   name: e.name,
@@ -41,6 +49,7 @@ const exerciseDto = (e: GymExercise) => ({
   position: e.position,
   hasImage: !!e.image,
   imageVersion: e.imageVersion,
+  imageKey: e.image ? imageSig(e.id, e.imageVersion) : null,
 });
 
 /** Programs A and B always exist — created lazily on first use. */
@@ -111,16 +120,16 @@ router.post(
 
 /* ─────────────── Everything below: signed-in member ─────────────── */
 
-/** Machine photo. Registered before the gate because <img> passes the token as ?t=. */
+/** Machine photo. <img> can't send headers, so access is by signed URL. */
 router.get(
   '/exercises/:id/image',
-  requireGym,
   asyncHandler(async (req, res) => {
     const e = await prisma.gymExercise.findUnique({
       where: { id: req.params.id },
-      select: { image: true, imageType: true },
+      select: { image: true, imageType: true, imageVersion: true },
     });
-    if (!e?.image) throw notFound('No image');
+    const key = typeof req.query.k === 'string' ? req.query.k : '';
+    if (!e?.image || !safeEqual(key, imageSig(req.params.id, e.imageVersion))) throw notFound('No image');
     res.setHeader('Content-Type', e.imageType ?? 'image/jpeg');
     // URLs carry ?v=<version>, so a new photo always gets a new URL.
     res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
@@ -300,9 +309,34 @@ async function previousFor(memberId: string, exerciseId: string, excludeSessionI
   return sets.length ? { date: hit.session.startedAt, sets } : null;
 }
 
+const STALE_MS = 8 * 60 * 60 * 1000;
+
+/**
+ * A workout nobody finished (forgot to tap "finish") must not stay "in
+ * progress" for days. After 8 hours it is closed at the time of its last
+ * logged set — or deleted if nothing was logged.
+ */
+async function closeStaleSessions(memberId: string) {
+  const stale = await prisma.gymSession.findMany({
+    where: { memberId, endedAt: null, startedAt: { lt: new Date(Date.now() - STALE_MS) } },
+    include: { sets: true },
+  });
+  for (const s of stale) {
+    const real = s.sets.filter(counts);
+    if (real.length === 0) {
+      await prisma.gymSession.delete({ where: { id: s.id } });
+      continue;
+    }
+    const last = Math.max(...real.map((x) => x.updatedAt.getTime()));
+    await prisma.gymSetLog.deleteMany({ where: { sessionId: s.id, done: false, OR: [{ weight: null }, { reps: null }] } });
+    await prisma.gymSession.update({ where: { id: s.id }, data: { endedAt: new Date(Math.max(last, s.startedAt.getTime() + 60_000)) } });
+  }
+}
+
 router.get(
   '/sessions/active',
   asyncHandler(async (_req, res) => {
+    await closeStaleSessions(me(res));
     const session = await prisma.gymSession.findFirst({
       where: { memberId: me(res), endedAt: null },
       orderBy: { startedAt: 'desc' },
@@ -316,6 +350,7 @@ router.post(
   validateBody(z.object({ planKey: z.string() })),
   asyncHandler(async (req, res) => {
     const key = planKeyOf(req.body.planKey);
+    await closeStaleSessions(me(res));
     const active = await prisma.gymSession.findFirst({ where: { memberId: me(res), endedAt: null } });
     if (active) return res.json({ session: active, resumed: true });
     await ensurePlans();

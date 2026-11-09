@@ -99,7 +99,12 @@ function PinScreen({
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (pin.length !== 4 || busy || (needsSetup && !code)) return;
+    if (pin.length !== 4 || busy) return;
+    if (needsSetup && !code.trim()) {
+      setError('קודם הכניסו את קוד ההצטרפות של הקבוצה');
+      setPin('');
+      return;
+    }
     setBusy(true);
     setError('');
     gym

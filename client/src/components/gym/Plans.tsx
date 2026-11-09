@@ -23,7 +23,11 @@ export function Plans({ plans, planKey, onPlanKey }: { plans: Plan[]; planKey: '
   const reorder = useMutation({
     mutationFn: (ids: string[]) => gym.reorder(planKey, ids),
     onSuccess: (r) => qc.setQueryData(['gym', 'plans'], r),
-    onError: (e) => toast.error(errText(e)),
+    onError: (e) => {
+      toast.error(errText(e));
+      // Roll back the optimistic order to what the server actually has.
+      void qc.invalidateQueries({ queryKey: ['gym', 'plans'] });
+    },
   });
   const rename = useMutation({
     mutationFn: () => gym.renamePlan(planKey, name.trim()),
