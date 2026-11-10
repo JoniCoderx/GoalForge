@@ -255,6 +255,7 @@ model GymMember {
 
   workouts GymWorkout[]
   sessions GymSession[]
+  pushSubs GymPushSub[]
 }
 
 // Legacy timer-only log from the first version of /gym. Unused; kept so
@@ -345,4 +346,27 @@ model GymSetLog {
 
   @@index([sessionId])
   @@index([exerciseId])
+}
+
+// Web Push signing keys (VAPID), generated once and kept in the DB so they
+// survive deploys without any manual configuration.
+model GymPushKey {
+  id         String   @id // always "vapid"
+  publicKey  String
+  privateKey String
+  createdAt  DateTime @default(now())
+}
+
+// A phone that allowed lock-screen notifications.
+model GymPushSub {
+  id        String   @id @default(cuid())
+  memberId  String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  member GymMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
 }

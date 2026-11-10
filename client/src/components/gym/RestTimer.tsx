@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Timer, X } from 'lucide-react';
-import { REST_OPTIONS } from '@/lib/gym';
+import { REST_OPTIONS, gym } from '@/lib/gym';
 import { useNow } from '@/lib/useNow';
 import { cn } from '@/lib/utils';
 
@@ -10,10 +10,20 @@ import { cn } from '@/lib/utils';
  * tap; the floating button opens it any time. Time is tracked as an absolute
  * end timestamp, so it stays correct if the phone locks mid-rest.
  */
-export function RestTimer({ promptSignal }: { promptSignal: number }) {
+const LAST_KEY = 'gym_rest_last';
+const readLast = () => {
+  try {
+    return Number(localStorage.getItem(LAST_KEY)) || 90;
+  } catch {
+    return 90;
+  }
+};
+
+export function RestTimer({ promptSignal, label }: { promptSignal: number; label: string }) {
   const [prompt, setPrompt] = useState(false);
   const [endAt, setEndAt] = useState<number | null>(null);
   const [total, setTotal] = useState(0);
+  const [last, setLast] = useState(readLast);
   const audio = useRef<AudioContext | null>(null);
   const now = useNow(250);
 
@@ -42,6 +52,27 @@ export function RestTimer({ promptSignal }: { promptSignal: number }) {
     setTotal(sec * 1000);
     setEndAt(Date.now() + sec * 1000);
     setPrompt(false);
+    setLast(sec);
+    try {
+      localStorage.setItem(LAST_KEY, String(sec));
+    } catch {
+      /* ignore */
+    }
+    // Lock-screen notification at the end (no-op if notifications are off).
+    void gym.restPush(sec, label || undefined).catch(() => undefined);
+  };
+
+  const stop = () => {
+    setEndAt(null);
+    void gym.cancelRestPush().catch(() => undefined);
+  };
+
+  const addTime = () => {
+    if (!endAt) return;
+    const next = endAt + 15000;
+    setEndAt(next);
+    setTotal((t) => t + 15000);
+    void gym.restPush(Math.ceil((next - Date.now()) / 1000), label || undefined).catch(() => undefined);
   };
 
   const secs = Math.ceil(remaining / 1000);
@@ -58,16 +89,16 @@ export function RestTimer({ promptSignal }: { promptSignal: number }) {
             className="pointer-events-auto mx-auto max-w-lg overflow-hidden rounded-[24px] border border-white/10 bg-[#1a1c20]/95 shadow-2xl backdrop-blur-xl"
           >
             <div className="flex items-center gap-3 p-3">
-              <div className="flex-1 ps-2">
-                <p className="text-[13px] font-semibold text-white/50">מנוחה</p>
+              <div className="min-w-0 flex-1 ps-2">
+                <p className="truncate text-[13px] font-semibold text-white/50">{label ? `הבא: ${label}` : 'מנוחה'}</p>
                 <p className="text-4xl font-black tabular-nums leading-none" dir="ltr" style={{ textAlign: 'right' }}>
                   {Math.floor(secs / 60)}:{String(secs % 60).padStart(2, '0')}
                 </p>
               </div>
-              <button type="button" onClick={() => setEndAt((e) => (e ? e + 15000 : e))} className="h-12 rounded-2xl bg-white/[0.08] px-4 text-[15px] font-bold">
+              <button type="button" onClick={addTime} className="h-12 rounded-2xl bg-white/[0.08] px-4 text-[15px] font-bold">
                 +15
               </button>
-              <button type="button" onClick={() => setEndAt(null)} className="h-12 rounded-2xl bg-[#d4ff3a] px-4 text-[15px] font-bold text-black">
+              <button type="button" onClick={stop} className="h-12 rounded-2xl bg-[#d4ff3a] px-4 text-[15px] font-bold text-black">
                 דילוג
               </button>
             </div>
@@ -88,7 +119,15 @@ export function RestTimer({ promptSignal }: { promptSignal: number }) {
             </span>
             <div className="flex flex-1 gap-2">
               {REST_OPTIONS.map((s) => (
-                <button key={s} type="button" onClick={() => start(s)} className="h-12 flex-1 rounded-2xl bg-white/[0.08] text-[17px] font-black active:bg-[#d4ff3a] active:text-black">
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => start(s)}
+                  className={cn(
+                    'h-12 flex-1 rounded-2xl text-[17px] font-black active:scale-95',
+                    s === last ? 'bg-[#d4ff3a] text-black' : 'bg-white/[0.08]'
+                  )}
+                >
                   {s}
                 </button>
               ))}

@@ -188,6 +188,13 @@ export const gym = {
   discardSession: (id: string) => send<{ ok: boolean }>('DELETE', `/sessions/${id}`),
   history: () => request<{ sessions: HistoryEntry[] }>('/history'),
 
+  pushKey: () => request<{ publicKey: string }>('/push/key'),
+  pushSubscribe: (sub: PushSubscriptionJSON) => send<{ ok: boolean }>('POST', '/push/subscribe', sub),
+  pushUnsubscribe: (endpoint: string) => send<{ ok: boolean }>('POST', '/push/unsubscribe', { endpoint }),
+  pushTest: () => send<{ sent: number }>('POST', '/push/test'),
+  restPush: (seconds: number, body?: string) => send<{ ok: boolean }>('POST', '/push/rest', { seconds, body }),
+  cancelRestPush: () => send<{ ok: boolean }>('DELETE', '/push/rest'),
+
   calendar: (from: Date, to: Date) =>
     request<{ sessions: { memberId: string; startedAt: string; planKey: 'A' | 'B' }[] }>(
       `/calendar?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`

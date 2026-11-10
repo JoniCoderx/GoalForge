@@ -5,6 +5,7 @@ import { CalendarDays, ChevronLeft, History, Play } from 'lucide-react';
 import { fmtClock, gym, relativeDay, type GymMember, type Plan, type Session } from '@/lib/gym';
 import { useNow } from '@/lib/useNow';
 import { Avatar, Card, GymButton, SectionLabel, Sheet } from './shared';
+import { PushCard } from './PushCard';
 
 export function Home({
   me,
@@ -68,6 +69,8 @@ export function Home({
           <Play className="h-7 w-7 fill-current" /> התחלת אימון
         </motion.button>
       )}
+
+      <PushCard />
 
       {/* The crew: this week + last workout, one card per person */}
       <SectionLabel>החבר׳ה</SectionLabel>

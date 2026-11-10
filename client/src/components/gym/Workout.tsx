@@ -55,7 +55,7 @@ export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string;
 
   const [draft, setDraft] = useState<Draft | null>(null);
   const [status, setStatus] = useState<'saved' | 'saving' | 'offline'>('saved');
-  const [restPrompt, setRestPrompt] = useState(0);
+  const [restPrompt, setRestPrompt] = useState({ n: 0, label: '' });
   const [finishing, setFinishing] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -318,7 +318,7 @@ export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string;
                 item={it}
                 rows={draft?.[it.key] ?? []}
                 onRows={(rows) => update(it.key, rows)}
-                onSetDone={() => setRestPrompt((n) => n + 1)}
+                onSetDone={(label) => setRestPrompt((p) => ({ n: p.n + 1, label }))}
                 onZoom={setZoom}
               />
             ))}
@@ -326,7 +326,7 @@ export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string;
         )}
       </main>
 
-      <RestTimer promptSignal={restPrompt} />
+      <RestTimer promptSignal={restPrompt.n} label={restPrompt.label} />
 
       {/* Finish sheet */}
       <Sheet open={finishing} onClose={() => { setFinishing(false); setConfirmDiscard(false); }} title="סיום אימון">
@@ -409,13 +409,16 @@ function ExerciseCard({
   item: SessionItem;
   rows: Row[];
   onRows: (rows: Row[]) => void;
-  onSetDone: () => void;
+  onSetDone: (nextLabel: string) => void;
   onZoom: (e: Exercise) => void;
 }) {
   const ex = item.exercise;
   const prev = item.previous;
   const editable = !!ex;
   const allDone = rows.length > 0 && rows.every((r) => r.done);
+  // null = automatic (collapse once every set is done); true/false = user's choice.
+  const [open, setOpen] = useState<boolean | null>(null);
+  const collapsed = open === null ? allDone : !open;
 
   const setRow = (i: number, patch: Partial<Row>) => onRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
@@ -429,7 +432,8 @@ function ExerciseCard({
         w: r.w || (p?.weight != null ? fmtKg(p.weight) : ''),
         r: r.r || (p?.reps != null ? String(p.reps) : ''),
       });
-      onSetDone();
+      const nextOpen = rows.findIndex((x, j) => j !== i && !x.done);
+      onSetDone(nextOpen === -1 ? `${item.name} הושלם — לתרגיל הבא` : `${item.name} · סט ${nextOpen + 1}`);
       navigator.vibrate?.(15);
     } else setRow(i, { done: false });
   };
@@ -447,6 +451,29 @@ function ExerciseCard({
     );
     toast.success('הועתק מהאימון הקודם');
   };
+
+  if (collapsed) {
+    // Finished exercise → compact summary row, tap to reopen.
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center gap-3 rounded-[22px] border border-[#d4ff3a]/25 bg-[#d4ff3a]/[0.05] p-3 text-start"
+        aria-label={`${item.name} — הושלם, הקישו לפתיחה`}
+      >
+        <Thumb exercise={ex} size={44} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[16px] font-bold">{item.name}</p>
+          <p className="truncate text-[13px] font-semibold text-white/55" dir="ltr" style={{ textAlign: 'right' }}>
+            {rows.map((r) => `${r.w || '–'}×${r.r || '–'}`).join('  ·  ')}
+          </p>
+        </div>
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#d4ff3a] text-black">
+          <Check className="h-5 w-5" strokeWidth={3} />
+        </span>
+      </button>
+    );
+  }
 
   return (
     <section className={cn('rounded-[24px] border p-3.5 transition-colors', allDone ? 'border-[#d4ff3a]/30 bg-[#d4ff3a]/[0.04]' : 'border-white/[0.08] bg-white/[0.035]')}>
@@ -467,7 +494,16 @@ function ExerciseCard({
           )}
           {ex?.notes && <p className="mt-0.5 line-clamp-2 text-[13px] text-white/40">{ex.notes}</p>}
         </div>
-        {allDone && <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#d4ff3a] text-black"><Check className="h-5 w-5" /></span>}
+        {allDone && (
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label="כיווץ התרגיל"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#d4ff3a] text-black"
+          >
+            <Check className="h-5 w-5" strokeWidth={3} />
+          </button>
+        )}
       </div>
 
       {/* Last time */}

@@ -118,7 +118,16 @@ export function createApp(): Express {
 
   // In production, serve the built client and let the SPA handle routing.
   if (existsSync(clientDist)) {
-    app.use(express.static(clientDist, { maxAge: '1h', index: false }));
+    app.use(
+      express.static(clientDist, {
+        maxAge: '1h',
+        index: false,
+        // Service workers must always revalidate, or phones keep a stale one.
+        setHeaders: (res, path) => {
+          if (path.endsWith('-sw.js')) res.setHeader('Cache-Control', 'no-cache');
+        },
+      })
+    );
     app.get('*', (req, res, next) => {
       if (req.path.startsWith('/api') || req.path.startsWith('/storage')) return next();
       res.sendFile(join(clientDist, 'index.html'));

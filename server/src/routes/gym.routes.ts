@@ -9,6 +9,7 @@ import { asyncHandler, badRequest, notFound, unauthorized } from '../utils/http.
 import { validateBody } from '../middleware/validate.js';
 import { requireGym } from '../middleware/gym.js';
 import { signGymToken } from '../utils/jwt.js';
+import { cancelRestPush, getVapidKeys, pushToMember, scheduleRestPush } from '../services/push.service.js';
 
 const router = Router();
 
@@ -154,6 +155,68 @@ router.get(
     res.json({ members: members.map(memberDto) });
   })
 );
+
+/* ─────────────── Lock-screen notifications (Web Push) ─────────────── */
+
+router.get(
+  '/push/key',
+  asyncHandler(async (_req, res) => {
+    res.json({ publicKey: (await getVapidKeys()).publicKey });
+  })
+);
+
+router.post(
+  '/push/subscribe',
+  validateBody(
+    z.object({
+      endpoint: z.string().url().max(1000),
+      keys: z.object({ p256dh: z.string().min(1).max(200), auth: z.string().min(1).max(100) }),
+    })
+  ),
+  asyncHandler(async (req, res) => {
+    const { endpoint, keys } = req.body as { endpoint: string; keys: { p256dh: string; auth: string } };
+    if (!/^https:\/\//.test(endpoint)) throw badRequest('Invalid endpoint');
+    await prisma.gymPushSub.upsert({
+      where: { endpoint },
+      update: { memberId: me(res), p256dh: keys.p256dh, auth: keys.auth },
+      create: { endpoint, memberId: me(res), p256dh: keys.p256dh, auth: keys.auth },
+    });
+    res.json({ ok: true });
+  })
+);
+
+router.post(
+  '/push/unsubscribe',
+  validateBody(z.object({ endpoint: z.string().max(1000) })),
+  asyncHandler(async (req, res) => {
+    await prisma.gymPushSub.deleteMany({ where: { endpoint: req.body.endpoint, memberId: me(res) } });
+    res.json({ ok: true });
+  })
+);
+
+router.post(
+  '/push/test',
+  asyncHandler(async (_req, res) => {
+    const sent = await pushToMember(me(res), { title: 'GYM·LOG', body: 'ההתראות עובדות 💪', tag: 'test', url: '/gym' });
+    res.json({ sent });
+  })
+);
+
+/** Ping this member's phones when the rest period ends. */
+router.post(
+  '/push/rest',
+  validateBody(z.object({ seconds: z.number().int().min(5).max(900), body: z.string().max(120).optional() })),
+  asyncHandler(async (req, res) => {
+    const { seconds, body } = req.body as { seconds: number; body?: string };
+    scheduleRestPush(me(res), seconds, body || 'יאללה, לסט הבא 💪');
+    res.json({ ok: true });
+  })
+);
+
+router.delete('/push/rest', (_req, res) => {
+  cancelRestPush(me(res));
+  res.json({ ok: true });
+});
 
 /* ─────────────── Shared programs A / B ─────────────── */
 

@@ -173,14 +173,21 @@ Screen*; it then opens full-screen like a native app).
   from last time, as placeholders and a one-tap copy. Everything autosaves;
   an interrupted workout reopens where you left off, and edits made without
   signal are kept on the phone and synced when the connection returns.
-- **Rest timer** — 60/90/120 s offered after each completed set.
+- **Rest timer** — 60/90/120 s offered after each completed set (remembers
+  your usual length, shows what's next). With lock-screen notifications
+  enabled (Home → *התראות במסך הנעילה*), the phone gets a push when the rest
+  ends even while locked. iPhone requirement (iOS 16.4+): the app must be
+  added to the Home Screen and opened from there. Push signing keys are
+  generated once and stored in the DB — no configuration needed.
+- **Finished exercises** fold into a one-line summary; tap to reopen.
 - **History & calendar** — your workouts set-by-set, plus a monthly
   calendar showing when each person trained (colour per person).
 - **Progress** — totals, weekly/monthly counts, average per week, personal
   records, and a working-weight chart per exercise; attendance comparison
   between friends without exposing anyone's weights.
 
-Data: `GymMember`, `GymPlan`, `GymExercise`, `GymSession`, `GymSetLog`
+Data: `GymMember`, `GymPlan`, `GymExercise`, `GymSession`, `GymSetLog`,
+`GymPushSub`, `GymPushKey`
 (`GymWorkout` is the unused legacy table from the first version, kept so
 deploys never need a destructive migration). Members from the first version
 keep their name and set a PIN on first sign-in using the group code.
