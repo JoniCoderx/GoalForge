@@ -2,10 +2,10 @@ import { Router, type Response } from 'express';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-import type { GymExercise, GymSetLog } from '@prisma/client';
+import { Prisma, type GymExercise, type GymSetLog } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { env } from '../config/env.js';
-import { asyncHandler, badRequest, notFound, unauthorized } from '../utils/http.js';
+import { ApiError, asyncHandler, badRequest, notFound, unauthorized } from '../utils/http.js';
 import { validateBody } from '../middleware/validate.js';
 import { requireGym } from '../middleware/gym.js';
 import { signGymToken } from '../utils/jwt.js';
@@ -376,14 +376,13 @@ const STALE_MS = 8 * 60 * 60 * 1000;
 
 /**
  * A workout nobody finished (forgot to tap "finish") must not stay "in
- * progress" for days. After 8 hours it is closed at the time of its last
- * logged set — or deleted if nothing was logged.
+ * progress" for days. After 8 hours with NO activity (no set edited) it is
+ * closed at the time of its last logged set — or deleted if nothing was logged.
  */
 async function closeStaleSessions(memberId: string) {
-  const stale = await prisma.gymSession.findMany({
-    where: { memberId, endedAt: null, startedAt: { lt: new Date(Date.now() - STALE_MS) } },
-    include: { sets: true },
-  });
+  const open = await prisma.gymSession.findMany({ where: { memberId, endedAt: null }, include: { sets: true } });
+  const cutoff = Date.now() - STALE_MS;
+  const stale = open.filter((s) => Math.max(s.startedAt.getTime(), ...s.sets.map((x) => x.updatedAt.getTime())) < cutoff);
   for (const s of stale) {
     const real = s.sets.filter(counts);
     if (real.length === 0) {
@@ -443,7 +442,10 @@ router.get(
       name: string;
       sets: ReturnType<typeof setDto>[];
       previous: Awaited<ReturnType<typeof previousFor>>;
+      savedAt: string | null;
     };
+    const savedAt = (ls: GymSetLog[] | undefined) =>
+      ls?.length ? new Date(Math.max(...ls.map((x) => x.updatedAt.getTime()))).toISOString() : null;
     const items: Item[] = [];
     const byKey = new Map<string, GymSetLog[]>();
     for (const l of logs) {
@@ -463,13 +465,14 @@ router.get(
           name: e.name,
           sets: (byKey.get(e.id) ?? []).map(setDto),
           previous: await previousFor(session.memberId, e.id, session.id),
+          savedAt: savedAt(byKey.get(e.id)),
         });
         byKey.delete(e.id);
       }
     }
     for (const [k, ls] of byKey) {
       const ex = ls[0].exerciseId ? await prisma.gymExercise.findUnique({ where: { id: ls[0].exerciseId } }) : null;
-      items.push({ key: k, exercise: ex ? exerciseDto(ex) : null, name: ls[0].exerciseName, sets: ls.map(setDto), previous: null });
+      items.push({ key: k, exercise: ex ? exerciseDto(ex) : null, name: ls[0].exerciseName, sets: ls.map(setDto), previous: null, savedAt: savedAt(ls) });
     }
 
     res.json({ session, items });
@@ -493,25 +496,40 @@ router.put(
   ),
   asyncHandler(async (req, res) => {
     const session = await mySession(res, req.params.id);
+    // A finished workout is history — late/background saves must not rewrite it.
+    if (session.endedAt) throw new ApiError(409, 'האימון כבר הסתיים');
     const exercise = await prisma.gymExercise.findUnique({ where: { id: req.params.exerciseId } });
-    if (!exercise) throw notFound('Exercise not found');
+    // 410: the exercise was removed from the program mid-workout.
+    if (!exercise) throw new ApiError(410, 'התרגיל נמחק מהתוכנית');
     const sets = req.body.sets as { weight: number | null; reps: number | null; done: boolean }[];
-    // Replace this exercise's sets atomically — autosave sends the full list.
-    await prisma.$transaction([
-      prisma.gymSetLog.deleteMany({ where: { sessionId: session.id, exerciseId: exercise.id } }),
-      prisma.gymSetLog.createMany({
-        data: sets.map((s, i) => ({
-          sessionId: session.id,
-          exerciseId: exercise.id,
-          exerciseName: exercise.name,
-          exerciseOrder: exercise.position,
-          setIndex: i,
-          weight: s.weight,
-          reps: s.reps,
-          done: s.done,
-        })),
-      }),
-    ]);
+    // Replace this exercise's sets — autosave sends the full list. Serializable,
+    // so two overlapping saves can never interleave into duplicated sets.
+    try {
+      await prisma.$transaction(
+        async (tx) => {
+          await tx.gymSetLog.deleteMany({ where: { sessionId: session.id, exerciseId: exercise.id } });
+          await tx.gymSetLog.createMany({
+            data: sets.map((s, i) => ({
+              sessionId: session.id,
+              exerciseId: exercise.id,
+              exerciseName: exercise.name,
+              exerciseOrder: exercise.position,
+              setIndex: i,
+              weight: s.weight,
+              reps: s.reps,
+              done: s.done,
+            })),
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
+    } catch (err) {
+      // Write conflict with a concurrent save: the client keeps the edit and retries.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2034') {
+        throw new ApiError(503, 'שמירה מקבילה — מנסה שוב');
+      }
+      throw err;
+    }
     res.json({ ok: true, savedAt: new Date().toISOString() });
   })
 );

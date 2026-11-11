@@ -33,6 +33,16 @@ export function RestTimer({ promptSignal, label }: { promptSignal: number; label
 
   const remaining = endAt ? Math.max(0, endAt - now) : 0;
 
+  // Workout finished/discarded mid-rest: don't ping the lock screen afterwards.
+  const runningRef = useRef(false);
+  runningRef.current = endAt !== null;
+  useEffect(
+    () => () => {
+      if (runningRef.current) void gym.cancelRestPush().catch(() => undefined);
+    },
+    []
+  );
+
   useEffect(() => {
     if (endAt && remaining === 0) {
       setEndAt(null);

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { BarChart3, CalendarDays, Dumbbell, Home as HomeIcon, LogOut, type LucideIcon } from 'lucide-react';
 import { ApiError } from '@/lib/api';
-import { getGymToken, getStoredMe, gym, saveSession, type GymMember } from '@/lib/gym';
+import { flushPendingSaves, getGymToken, getStoredMe, gym, saveSession, type GymMember } from '@/lib/gym';
 import { cn } from '@/lib/utils';
 import { GymAuth } from '@/components/gym/Auth';
 import { Home } from '@/components/gym/Home';
@@ -63,7 +63,9 @@ export default function Gym() {
   const [planKey, setPlanKey] = useState<'A' | 'B'>('A');
   const [workoutOpen, setWorkoutOpen] = useState(false);
 
-  const signOut = useCallback(() => {
+  const signOut = useCallback(async () => {
+    // Finish any pending workout saves while the token is still valid.
+    await flushPendingSaves();
     saveSession(null, null);
     qc.removeQueries({ queryKey: ['gym'] });
     setMe(null);
@@ -72,10 +74,17 @@ export default function Gym() {
   }, [qc]);
 
   useEffect(() => {
-    const onOut = () => signOut();
+    // Token already rejected by the server: just clear local state.
+    const onOut = () => {
+      saveSession(null, null);
+      qc.removeQueries({ queryKey: ['gym'] });
+      setMe(null);
+      setWorkoutOpen(false);
+      setTab('home');
+    };
     window.addEventListener('gym:signed-out', onOut);
     return () => window.removeEventListener('gym:signed-out', onOut);
-  }, [signOut]);
+  }, [qc]);
 
   const enabled = !!me;
   const { data: plansData } = useQuery({ queryKey: ['gym', 'plans'], queryFn: gym.plans, enabled });
@@ -123,7 +132,7 @@ export default function Gym() {
           </span>
           <div className="flex items-center gap-2">
             <Avatar member={me} size={32} />
-            <button type="button" onClick={signOut} aria-label="התנתקות" className="grid h-9 w-9 place-items-center rounded-full text-white/40 active:bg-white/10">
+            <button type="button" onClick={() => void signOut()} aria-label="התנתקות" className="grid h-9 w-9 place-items-center rounded-full text-white/40 active:bg-white/10">
               <LogOut className="h-[18px] w-[18px]" />
             </button>
           </div>
@@ -171,21 +180,35 @@ export default function Gym() {
         </div>
       </nav>
 
-      <AnimatePresence>
-        {workoutOpen && active && (
-          <motion.div key="workout" initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 34, stiffness: 320 }} className="fixed inset-0 z-40">
-            <Workout
-              sessionId={active.id}
-              onMinimize={() => setWorkoutOpen(false)}
-              onEnded={() => {
-                setWorkoutOpen(false);
-                qc.setQueryData(['gym', 'active'], { session: null });
-                setTab('home');
-              }}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* The workout stays MOUNTED for as long as it's active — "בית" only
+          slides it away. Unmounting it lost unsaved input and rebuilt the
+          screen from stale data, which then overwrote saved sets. */}
+      {active && (
+        <motion.div
+          key={active.id}
+          className="fixed inset-0 z-40"
+          initial={{ y: '100%', visibility: 'hidden' }}
+          animate={
+            workoutOpen
+              ? { y: 0, visibility: 'visible' }
+              : { y: '100%', transitionEnd: { visibility: 'hidden' } }
+          }
+          transition={{ type: 'spring', damping: 34, stiffness: 320 }}
+          style={{ pointerEvents: workoutOpen ? 'auto' : 'none' }}
+          aria-hidden={!workoutOpen}
+        >
+          <Workout
+            sessionId={active.id}
+            visible={workoutOpen}
+            onMinimize={() => setWorkoutOpen(false)}
+            onEnded={() => {
+              setWorkoutOpen(false);
+              qc.setQueryData(['gym', 'active'], { session: null });
+              setTab('home');
+            }}
+          />
+        </motion.div>
+      )}
     </div>
   );
 }

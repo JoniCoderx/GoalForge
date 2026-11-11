@@ -53,6 +53,8 @@ export interface SessionItem {
   name: string;
   sets: SetEntry[];
   previous: { date: string; sets: SetEntry[] } | null;
+  /** When the server last saved this exercise's sets (null = never). */
+  savedAt: string | null;
 }
 
 export interface HistoryEntry {
@@ -115,6 +117,17 @@ export function getStoredMe(): GymMember | null {
 export function saveSession(token: string | null, member: GymMember | null) {
   write(TOKEN_KEY, token);
   write(ME_KEY, member ? JSON.stringify(member) : null);
+}
+
+/** Pending-save flushers (open workout) that sign-out must await first. */
+export const pendingFlushers = new Set<() => Promise<unknown>>();
+
+/** Run all pending saves, giving up after `ms` (e.g. no signal). */
+export async function flushPendingSaves(ms = 4000): Promise<void> {
+  await Promise.race([
+    Promise.allSettled([...pendingFlushers].map((f) => f())),
+    new Promise((r) => setTimeout(r, ms)),
+  ]);
 }
 
 /* ─────────────── API client ─────────────── */

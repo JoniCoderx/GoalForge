@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { Check, ChevronRight, CloudOff, Copy, Minus, Plus } from 'lucide-react';
 import { ApiError } from '@/lib/api';
-import { fmtClock, fmtKg, gym, imageUrl, relativeDay, repsRange, type Exercise, type SessionItem, type SetEntry } from '@/lib/gym';
+import { fmtClock, fmtKg, gym, imageUrl, pendingFlushers, relativeDay, repsRange, type Exercise, type SessionItem, type SetEntry } from '@/lib/gym';
 import { useNow } from '@/lib/useNow';
 import { cn } from '@/lib/utils';
 import { GymButton, Sheet, Thumb } from './shared';
@@ -42,12 +42,25 @@ function focusNext(el: HTMLInputElement) {
 
 const maxWeight = (sets: { weight: number | null }[]) => Math.max(0, ...sets.map((s) => s.weight ?? 0));
 
-export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string; onMinimize: () => void; onEnded: (discarded: boolean) => void }) {
+export function Workout({
+  sessionId,
+  visible = true,
+  onMinimize,
+  onEnded,
+}: {
+  sessionId: string;
+  visible?: boolean;
+  onMinimize: () => void;
+  onEnded: (discarded: boolean) => void;
+}) {
   const qc = useQueryClient();
   const now = useNow(1000);
-  const { data, isLoading, isError, error, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ['gym', 'session', sessionId],
     queryFn: () => gym.session(sessionId),
+    // Always load the server's current sets when this screen mounts — a
+    // cached copy from earlier is stale and must never seed the editor.
+    refetchOnMount: 'always',
     refetchOnWindowFocus: false,
     staleTime: Infinity,
     retry: (n, e) => !(e instanceof ApiError && e.status === 404) && n < 2,
@@ -63,10 +76,19 @@ export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string;
 
   const dirty = useRef(new Set<string>());
   const timers = useRef(new Map<string, number>());
+  /** When each unsynced edit was made — compared with the server on restore. */
+  const editedAt = useRef<Record<string, number>>({});
+  /** One save per exercise at a time; edits made meanwhile are sent right after. */
+  const inFlight = useRef(new Map<string, Promise<void>>());
+  const again = useRef(new Set<string>());
+  const mountedAt = useRef(Date.now());
   const draftRef = useRef<Draft | null>(null);
   draftRef.current = draft;
 
   const items = useMemo(() => data?.items ?? [], [data]);
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  const draftItemName = (key: string) => itemsRef.current.find((i) => i.key === key)?.name ?? 'התרגיל';
 
   // Finished or cancelled on another device — close instead of an error loop.
   useEffect(() => {
@@ -82,21 +104,30 @@ export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string;
     }
   }, [isError, error, sessionId, qc, onEnded]);
 
-  /* ── Initialise from server, then overlay any unsynced local backup ── */
+  /* ── Initialise from FRESH server data, then overlay newer unsynced edits ── */
   useEffect(() => {
-    if (!data || draft) return;
+    // Only data fetched successfully after this screen mounted may seed the
+    // editor (a cached or failed-refetch copy can be stale).
+    if (!data || draft || dataUpdatedAt < mountedAt.current) return;
     const init: Draft = {};
+    const serverTime: Record<string, number> = {};
     for (const it of data.items) {
       init[it.key] = it.sets.length ? it.sets.map(toRow) : Array.from({ length: it.exercise?.sets ?? 3 }, emptyRow);
+      serverTime[it.key] = it.savedAt ? Date.parse(it.savedAt) : 0;
     }
     try {
       const raw = localStorage.getItem(backupKey(sessionId));
       if (raw) {
-        const backup = JSON.parse(raw) as { draft: Draft; dirty: string[] };
+        const backup = JSON.parse(raw) as { draft: Draft; dirty: string[]; ts?: Record<string, number> };
         for (const k of backup.dirty) {
-          if (backup.draft[k] && init[k]) {
+          if (!backup.draft[k] || !init[k]) continue;
+          // Restore an unsynced edit only if it is newer than what the server
+          // has (another device may have saved newer data meanwhile).
+          const ts = backup.ts?.[k] ?? 0;
+          if (ts > serverTime[k] || (!backup.ts && serverTime[k] === 0)) {
             init[k] = backup.draft[k];
             dirty.current.add(k);
+            editedAt.current[k] = ts || Date.now();
           }
         }
       }
@@ -104,12 +135,16 @@ export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string;
       /* corrupt backup — server data wins */
     }
     setDraft(init);
-  }, [data, draft, sessionId]);
+  }, [data, draft, sessionId, dataUpdatedAt]);
 
   const persistBackup = useCallback(() => {
     try {
       if (dirty.current.size === 0) localStorage.removeItem(backupKey(sessionId));
-      else localStorage.setItem(backupKey(sessionId), JSON.stringify({ draft: draftRef.current, dirty: [...dirty.current] }));
+      else
+        localStorage.setItem(
+          backupKey(sessionId),
+          JSON.stringify({ draft: draftRef.current, dirty: [...dirty.current], ts: editedAt.current })
+        );
     } catch {
       /* storage full/private — server autosave still runs */
     }
@@ -117,22 +152,47 @@ export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string;
 
   /* ── Autosave ── */
   const flushOne = useCallback(
-    async (key: string) => {
-      const rows = draftRef.current?.[key];
-      if (!rows) return;
-      setStatus('saving');
-      try {
-        await gym.saveSets(sessionId, key, rows.map(toEntry));
-        // Only clear if nothing changed while the request was in flight.
-        if (draftRef.current?.[key] === rows) dirty.current.delete(key);
-        persistBackup();
-        setStatus(dirty.current.size ? 'saving' : 'saved');
-      } catch (e) {
-        setStatus('offline');
-        if (e instanceof ApiError && e.status === 404) dirty.current.delete(key);
+    (key: string): Promise<void> => {
+      const running = inFlight.current.get(key);
+      if (running) {
+        // Never overlap saves of one exercise (they could land out of order);
+        // send the latest rows once the current save completes.
+        again.current.add(key);
+        return running;
       }
+      const rows = draftRef.current?.[key];
+      if (!rows) return Promise.resolve();
+      setStatus('saving');
+      const p = (async () => {
+        try {
+          await gym.saveSets(sessionId, key, rows.map(toEntry));
+          // Only clear if nothing changed while the request was in flight.
+          if (draftRef.current?.[key] === rows) {
+            dirty.current.delete(key);
+            delete editedAt.current[key];
+          }
+        } catch (e) {
+          const status = e instanceof ApiError ? e.status : 0;
+          if (status === 409 || status === 410 || status === 404) {
+            // Can never succeed: workout finished (409), exercise removed from
+            // the program (410) or workout gone (404). Stop retrying.
+            dirty.current.delete(key);
+            delete editedAt.current[key];
+            toast.error(status === 410 ? `"${draftItemName(key)}" נמחק מהתוכנית — הסטים שלו לא נשמרים` : (e as Error).message, { id: `save-${status}` });
+            if (status === 404) void refetch();
+          }
+        } finally {
+          inFlight.current.delete(key);
+          persistBackup();
+          if (again.current.delete(key) && dirty.current.has(key)) await flushOne(key);
+          setStatus(dirty.current.size ? (navigator.onLine ? 'saving' : 'offline') : 'saved');
+        }
+      })();
+      inFlight.current.set(key, p);
+      return p;
     },
-    [sessionId, persistBackup]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sessionId, persistBackup, refetch]
   );
 
   const flushAll = useCallback(async () => {
@@ -145,7 +205,10 @@ export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string;
   // Retry unsynced changes every few seconds (lost signal in the gym).
   useEffect(() => {
     const id = window.setInterval(() => {
-      if (dirty.current.size && timers.current.size === 0) void flushAll();
+      if (dirty.current.size && timers.current.size === 0 && inFlight.current.size === 0) {
+        setStatus(navigator.onLine ? 'saving' : 'offline');
+        void flushAll();
+      }
     }, 4000);
     const onOnline = () => void flushAll();
     window.addEventListener('online', onOnline);
@@ -160,6 +223,31 @@ export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string;
     if (draft && dirty.current.size) void flushAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft === null]);
+
+  // Leaving the screen ("בית") or unmounting: save everything right away
+  // instead of waiting for the autosave debounce.
+  useEffect(() => {
+    if (!visible) {
+      persistBackup();
+      void flushAll();
+    }
+  }, [visible, flushAll, persistBackup]);
+  useEffect(
+    () => () => {
+      persistBackup();
+      void flushAll();
+    },
+    [flushAll, persistBackup]
+  );
+
+  // Let sign-out wait for pending saves before the token is cleared.
+  useEffect(() => {
+    const f = () => flushAll();
+    pendingFlushers.add(f);
+    return () => {
+      pendingFlushers.delete(f);
+    };
+  }, [flushAll]);
 
   // Save immediately when the app goes to the background (iOS may kill it).
   useEffect(() => {
@@ -177,6 +265,7 @@ export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string;
     setDraft((d) => (d ? { ...d, [key]: rows } : d));
     draftRef.current = draftRef.current ? { ...draftRef.current, [key]: rows } : draftRef.current;
     dirty.current.add(key);
+    editedAt.current[key] = Date.now();
     persistBackup();
     setStatus('saving');
     const prev = timers.current.get(key);
@@ -291,18 +380,18 @@ export function Workout({ sessionId, onMinimize, onEnded }: { sessionId: string;
 
       {/* Exercises */}
       <main className="flex-1 overflow-y-auto overscroll-contain px-3 pb-44 pt-3">
-        {isLoading || (data && !draft) ? (
-          <div className="space-y-3">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="h-56 animate-pulse rounded-[24px] bg-white/[0.04]" />
-            ))}
-          </div>
-        ) : isError ? (
+        {isError && !draft ? (
           <div className="py-20 text-center">
             <p className="text-white/60">לא הצלחנו לטעון את האימון</p>
             <GymButton variant="soft" className="mt-4" onClick={() => refetch()}>
               נסו שוב
             </GymButton>
+          </div>
+        ) : isLoading || !draft ? (
+          <div className="space-y-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-56 animate-pulse rounded-[24px] bg-white/[0.04]" />
+            ))}
           </div>
         ) : items.length === 0 ? (
           <div className="py-16 text-center">
