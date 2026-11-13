@@ -5,10 +5,11 @@ import compression from 'compression';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { env } from './config/env.js';
+import { isPrivatePath, renderIndex } from './lib/seo.js';
 import { storageRoot } from './services/storage/index.js';
 import apiRoutes from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
@@ -118,19 +119,25 @@ export function createApp(): Express {
 
   // In production, serve the built client and let the SPA handle routing.
   if (existsSync(clientDist)) {
+    const indexHtml = readFileSync(join(clientDist, 'index.html'), 'utf8');
     app.use(
       express.static(clientDist, {
         maxAge: '1h',
         index: false,
-        // Service workers must always revalidate, or phones keep a stale one.
         setHeaders: (res, path) => {
-          if (path.endsWith('-sw.js')) res.setHeader('Cache-Control', 'no-cache');
+          // Fingerprinted build output never changes → cache for a year.
+          if (/[\\/]assets[\\/]/.test(path)) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          // Service workers must always revalidate, or phones keep a stale one.
+          else if (path.endsWith('-sw.js')) res.setHeader('Cache-Control', 'no-cache');
         },
       })
     );
     app.get('*', (req, res, next) => {
       if (req.path.startsWith('/api') || req.path.startsWith('/storage')) return next();
-      res.sendFile(join(clientDist, 'index.html'));
+      // Route-specific head tags (link previews, noindex) — see lib/seo.ts.
+      if (isPrivatePath(req.path)) res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.type('html').send(renderIndex(indexHtml, req.path));
     });
   }
 

@@ -5,6 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import App from './App';
 import { AuthProvider } from './store/auth';
+// Self-hosted fonts (no render-blocking request to Google's servers).
+import '@fontsource-variable/inter';
+import '@fontsource-variable/space-grotesk';
 import './index.css';
 
 const queryClient = new QueryClient({

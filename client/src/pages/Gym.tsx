@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+// Self-hosted Hebrew font, loaded only with the gym app.
+import '@fontsource-variable/rubik';
 import { motion } from 'framer-motion';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -22,20 +24,22 @@ const TABS: { key: Tab; label: string; icon: LucideIcon }[] = [
   { key: 'stats', label: 'התקדמות', icon: BarChart3 },
 ];
 
-const FONT_HREF = 'https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800;900&display=swap';
 
 /** Head tags that make /gym installable on the iPhone home screen. */
 function useGymHead() {
   useEffect(() => {
     const added: HTMLElement[] = [];
     const add = (tag: 'link' | 'meta', attrs: Record<string, string>) => {
+      // The server already sends these for /gym; only add when missing
+      // (e.g. arriving via client-side navigation).
+      const key = attrs.rel ? `link[rel="${attrs.rel}"][href="${attrs.href}"]` : `meta[name="${attrs.name}"]`;
+      if (document.head.querySelector(key)) return;
       const el = document.createElement(tag);
       Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
       el.dataset.gym = '1';
       document.head.appendChild(el);
       added.push(el);
     };
-    add('link', { rel: 'stylesheet', href: FONT_HREF });
     add('link', { rel: 'manifest', href: '/gym.webmanifest' });
     add('link', { rel: 'apple-touch-icon', href: '/gym-icon-180.png' });
     add('meta', { name: 'apple-mobile-web-app-capable', content: 'yes' });
@@ -110,7 +114,7 @@ export default function Gym() {
   });
 
   const root = 'min-h-[100dvh] bg-[#0a0b0d] text-white antialiased [-webkit-tap-highlight-color:transparent]';
-  const font = { fontFamily: "'Rubik', -apple-system, system-ui, sans-serif" };
+  const font = { fontFamily: "'Rubik Variable', 'Rubik', -apple-system, system-ui, sans-serif" };
 
   if (!me) {
     return (

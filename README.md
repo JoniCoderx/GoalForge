@@ -247,6 +247,20 @@ A watchdog (`RENDER_TIMEOUT_MS`, default 10 min) kills any render that
 overruns and marks the job FAILED with a clear message, so one bad render can
 never wedge the queue.
 
+## 🔎 SEO, sharing & performance
+
+- **Link previews** — Open Graph + Twitter/X cards with a 1200×630 image for
+  the site (`og-goalforge.jpg`) and a Hebrew one for the gym app
+  (`og-gym.jpg`). Because previews are read without running JavaScript, the
+  server injects route-specific `<head>` tags (`server/src/lib/seo.ts`).
+- **Private routes** (`/app`, `/admin`, `/users`, `/expenses`, `/gym`) are
+  `noindex` via both a meta tag and an `X-Robots-Tag` header; `robots.txt`
+  and `sitemap.xml` cover the public pages.
+- **Speed** — self-hosted variable fonts (no render-blocking third-party
+  requests), an instant branded splash in the HTML, fingerprinted assets
+  cached for a year (`immutable`), and chunking that keeps the charts bundle
+  off pages without charts.
+
 ## 🔌 Extensibility
 
 - **Storage** — implement `StorageDriver` (see `services/storage/types.ts`) for S3/GCS.

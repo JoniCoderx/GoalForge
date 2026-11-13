@@ -25,15 +25,15 @@ export function Footer() {
           {cols.map((col) => (
             <div key={col.title}>
               <p className="font-display text-sm font-semibold text-white">{col.title}</p>
-              <ul className="mt-4 space-y-2.5">
+              <ul className="mt-3 space-y-0.5">
                 {col.links.map(([label, href]) => (
                   <li key={label}>
                     {href.startsWith('#') ? (
-                      <a href={href} className="text-sm text-slate-400 transition hover:text-white">
+                      <a href={href} className="inline-flex min-h-[40px] items-center text-sm text-slate-400 transition hover:text-white">
                         {label}
                       </a>
                     ) : (
-                      <Link to={href} className="text-sm text-slate-400 transition hover:text-white">
+                      <Link to={href} className="inline-flex min-h-[40px] items-center text-sm text-slate-400 transition hover:text-white">
                         {label}
                       </Link>
                     )}
@@ -44,8 +44,8 @@ export function Footer() {
           ))}
         </div>
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/5 pt-8 sm:flex-row">
-          <p className="text-sm text-slate-500">© {new Date().getFullYear()} GoalForge AI. All rights reserved.</p>
-          <p className="text-sm text-slate-500">Built for creators who move fast. ⚡</p>
+          <p className="text-sm text-slate-400">© {new Date().getFullYear()} GoalForge AI. All rights reserved.</p>
+          <p className="text-sm text-slate-400">Built for creators who move fast. ⚡</p>
         </div>
       </div>
     </footer>

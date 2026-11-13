@@ -63,7 +63,7 @@ export function Nav() {
             </>
           )}
         </div>
-        <button onClick={() => setOpen((v) => !v)} className="btn-ghost rounded-lg p-2 md:hidden" aria-label="Menu">
+        <button onClick={() => setOpen((v) => !v)} className="btn-ghost min-h-[44px] min-w-[44px] rounded-lg p-2 md:hidden" aria-label="Menu" aria-expanded={open}>
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </motion.nav>
