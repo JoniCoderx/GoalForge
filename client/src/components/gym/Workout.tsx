@@ -616,10 +616,10 @@ function ExerciseCard({
 
       {/* Sets */}
       <div className="mt-3">
-        <div className="grid grid-cols-[34px_1fr_1fr_56px] gap-2 px-1 pb-1.5 text-[12px] font-semibold text-white/35">
-          <span className="text-center">סט</span>
-          <span className="text-center">ק״ג</span>
-          <span className="text-center">חזרות</span>
+        <div className="grid grid-cols-[34px_1fr_1fr_56px] gap-2 px-1 pb-1.5 text-[13px] font-bold">
+          <span className="text-center text-white/45">סט</span>
+          <span className="text-center text-[#ff5a5a]">משקל (ק״ג)</span>
+          <span className="text-center text-[#ff5a5a]">חזרות</span>
           <span />
         </div>
         <div className="space-y-2">
@@ -630,6 +630,8 @@ function ExerciseCard({
                 <span className={cn('grid h-[34px] w-[34px] place-items-center rounded-full text-[15px] font-bold', r.done ? 'bg-[#d4ff3a] text-black' : 'bg-white/[0.07] text-white/60')}>
                   {i + 1}
                 </span>
+                <label className="relative block">
+                <span className="pointer-events-none absolute right-2 top-1 text-[10px] font-bold text-[#ff5a5a]">משקל</span>
                 <input
                   aria-label={`משקל סט ${i + 1}`}
                   inputMode="decimal"
@@ -641,10 +643,13 @@ function ExerciseCard({
                   placeholder={p?.weight != null ? fmtKg(p.weight) : 'ק״ג'}
                   onChange={(e) => setRow(i, { w: e.target.value.replace(/[^\d.,]/g, '').slice(0, 6) })}
                   className={cn(
-                    'h-14 w-full rounded-2xl border text-center text-[22px] font-bold tabular-nums placeholder:font-semibold placeholder:text-white/20 focus:outline-none',
-                    r.done ? 'border-[#d4ff3a]/25 bg-[#d4ff3a]/[0.08] text-white' : 'border-white/10 bg-white/[0.05] focus:border-[#d4ff3a]/70'
+                    'h-16 w-full rounded-2xl border-2 pt-3 text-center text-[24px] font-extrabold tabular-nums placeholder:font-semibold placeholder:text-white/25 focus:outline-none',
+                    r.done ? 'border-[#d4ff3a]/40 bg-[#d4ff3a]/[0.08] text-white' : 'border-white/20 bg-white/[0.08] focus:border-[#d4ff3a] focus:bg-white/[0.12]'
                   )}
                 />
+                </label>
+                <label className="relative block">
+                <span className="pointer-events-none absolute right-2 top-1 text-[10px] font-bold text-[#ff5a5a]">חזרות</span>
                 <input
                   aria-label={`חזרות סט ${i + 1}`}
                   inputMode="numeric"
@@ -656,10 +661,11 @@ function ExerciseCard({
                   placeholder={p?.reps != null ? String(p.reps) : 'חזרות'}
                   onChange={(e) => setRow(i, { r: e.target.value.replace(/\D/g, '').slice(0, 3) })}
                   className={cn(
-                    'h-14 w-full rounded-2xl border text-center text-[22px] font-bold tabular-nums placeholder:font-semibold placeholder:text-white/20 focus:outline-none',
-                    r.done ? 'border-[#d4ff3a]/25 bg-[#d4ff3a]/[0.08] text-white' : 'border-white/10 bg-white/[0.05] focus:border-[#d4ff3a]/70'
+                    'h-16 w-full rounded-2xl border-2 pt-3 text-center text-[24px] font-extrabold tabular-nums placeholder:font-semibold placeholder:text-white/25 focus:outline-none',
+                    r.done ? 'border-[#d4ff3a]/40 bg-[#d4ff3a]/[0.08] text-white' : 'border-white/20 bg-white/[0.08] focus:border-[#d4ff3a] focus:bg-white/[0.12]'
                   )}
                 />
+                </label>
                 <motion.button
                   type="button"
                   whileTap={{ scale: 0.88 }}
@@ -667,7 +673,7 @@ function ExerciseCard({
                   onClick={() => toggleDone(i)}
                   aria-label={r.done ? `ביטול סימון סט ${i + 1}` : `סימון סט ${i + 1} כהושלם`}
                   aria-pressed={r.done}
-                  className={cn('grid h-14 w-14 place-items-center rounded-2xl transition-colors', r.done ? 'bg-[#d4ff3a] text-black' : 'bg-white/[0.07] text-white/40')}
+                  className={cn('grid h-16 w-14 place-items-center rounded-2xl transition-colors', r.done ? 'bg-[#d4ff3a] text-black' : 'bg-white/[0.07] text-white/40')}
                 >
                   <Check className="h-7 w-7" strokeWidth={3} />
                 </motion.button>
