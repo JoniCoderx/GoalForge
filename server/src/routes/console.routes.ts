@@ -313,4 +313,40 @@ router.delete(
   })
 );
 
+// ---- Gym: merge two members that are the same person ----
+router.get(
+  '/gym/members',
+  asyncHandler(async (_req, res) => {
+    const members = await prisma.gymMember.findMany({
+      orderBy: { createdAt: 'asc' },
+      include: { _count: { select: { sessions: true } } },
+    });
+    res.json({ members: members.map((m) => ({ id: m.id, name: m.name, emoji: m.emoji, sessions: m._count.sessions })) });
+  })
+);
+
+router.post(
+  '/gym/merge',
+  validateBody(z.object({ fromId: z.string().min(1), intoId: z.string().min(1) })),
+  asyncHandler(async (req, res) => {
+    const { fromId, intoId } = req.body as { fromId: string; intoId: string };
+    if (fromId === intoId) throw badRequest('Pick two different members');
+    const [from, into] = await Promise.all([
+      prisma.gymMember.findUnique({ where: { id: fromId } }),
+      prisma.gymMember.findUnique({ where: { id: intoId } }),
+    ]);
+    if (!from || !into) throw notFound('Member not found');
+    const moved = await prisma.$transaction(async (tx) => {
+      // Only one open workout per member: close the merged one's if both are open.
+      const intoOpen = await tx.gymSession.findFirst({ where: { memberId: intoId, endedAt: null } });
+      if (intoOpen) await tx.gymSession.updateMany({ where: { memberId: fromId, endedAt: null }, data: { endedAt: new Date() } });
+      const s = await tx.gymSession.updateMany({ where: { memberId: fromId }, data: { memberId: intoId } });
+      await tx.gymWorkout.updateMany({ where: { memberId: fromId }, data: { memberId: intoId } });
+      await tx.gymMember.delete({ where: { id: fromId } });
+      return s.count;
+    });
+    res.json({ ok: true, moved, into: into.name, removed: from.name });
+  })
+);
+
 export default router;

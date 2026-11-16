@@ -334,4 +334,7 @@ export const consoleApi = {
   createCoupon: (data: CouponInput) => cbody<{ coupon: Coupon }>('POST', '/coupons', data),
   updateCoupon: (id: string, data: Partial<CouponInput>) => cbody<{ coupon: Coupon }>('PATCH', `/coupons/${id}`, data),
   deleteCoupon: (id: string) => cbody<{ ok: boolean }>('DELETE', `/coupons/${id}`),
+  gymMembers: () => cget<{ members: { id: string; name: string; emoji: string; sessions: number }[] }>('/gym/members'),
+  gymMerge: (fromId: string, intoId: string) =>
+    cbody<{ ok: boolean; moved: number; into: string; removed: string }>('POST', '/gym/merge', { fromId, intoId }),
 };

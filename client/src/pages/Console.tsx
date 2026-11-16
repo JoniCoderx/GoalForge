@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { LayoutDashboard, Users, Ticket, Activity, Lock, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, Users, Ticket, Activity, Lock, Dumbbell, type LucideIcon } from 'lucide-react';
 import { consoleApi, getConsoleToken, setConsoleToken, ApiError } from '@/lib/api';
 import { Logo } from '@/components/brand/Logo';
 import { Button } from '@/components/ui/Button';
@@ -12,14 +12,16 @@ import { OverviewTab } from '@/components/console/OverviewTab';
 import { UsersTab } from '@/components/console/UsersTab';
 import { CouponsTab } from '@/components/console/CouponsTab';
 import { ActivityTab } from '@/components/console/ActivityTab';
+import { GymTab } from '@/components/console/GymTab';
 
-type TabKey = 'overview' | 'users' | 'coupons' | 'activity';
+type TabKey = 'overview' | 'users' | 'coupons' | 'activity' | 'gym';
 
 const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
   { key: 'overview', label: 'Overview', icon: LayoutDashboard },
   { key: 'users', label: 'Users', icon: Users },
   { key: 'coupons', label: 'Coupons', icon: Ticket },
   { key: 'activity', label: 'Activity', icon: Activity },
+  { key: 'gym', label: 'Gym', icon: Dumbbell },
 ];
 
 type GateState = 'checking' | 'locked' | 'unlocked';
@@ -140,6 +142,7 @@ export default function Console() {
             {tab === 'users' && <UsersTab />}
             {tab === 'coupons' && <CouponsTab />}
             {tab === 'activity' && <ActivityTab />}
+            {tab === 'gym' && <GymTab />}
           </motion.div>
         </AnimatePresence>
       </main>
