@@ -517,8 +517,19 @@ function ExerciseCard({
     enabled: showHist && !!ex,
     staleTime: 60_000,
   });
-  const history = hist.data?.history ?? [];
+  const history = useMemo(() => hist.data?.history ?? [], [hist.data]);
   const shown = pick === 0 ? prev : history[pick] ?? prev;
+  // The workout closest to 30 days ago (only if there is one at least ~3 weeks old).
+  const monthAgo = useMemo(() => {
+    const target = Date.now() - 30 * 86_400_000;
+    let best = -1;
+    history.forEach((h, i) => {
+      const t = new Date(h.date).getTime();
+      if (Date.now() - t < 21 * 86_400_000) return;
+      if (best === -1 || Math.abs(t - target) < Math.abs(new Date(history[best].date).getTime() - target)) best = i;
+    });
+    return best;
+  }, [history]);
 
   const setRow = (i: number, patch: Partial<Row>) => onRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
@@ -547,10 +558,16 @@ function ExerciseCard({
         const cur = rows[i];
         if (cur?.done) return cur;
         const p = src.sets[i];
-        return p ? { w: p.weight == null ? '' : fmtKg(p.weight), r: p.reps == null ? '' : String(p.reps), done: false } : cur ?? emptyRow();
+        if (!p) return cur ?? emptyRow();
+        // Only fills empty fields — never overwrites what you already typed.
+        return {
+          w: cur?.w || (p.weight == null ? '' : fmtKg(p.weight)),
+          r: cur?.r || (p.reps == null ? '' : String(p.reps)),
+          done: false,
+        };
       })
     );
-    toast.success(pick === 0 ? 'הועתק מהאימון הקודם' : `הועתק מלפני ${pick + 1} אימונים`);
+    toast.success(`מולא מ${pick === 0 ? 'האימון הקודם' : relativeDay(src.date)} (רק שדות ריקים)`);
   };
 
   if (collapsed) {
@@ -614,7 +631,7 @@ function ExerciseCard({
             <div className="min-w-0 flex-1">
               <p className="text-[12px] font-semibold text-white/50">
                 <span className="font-bold text-[#ef4444]">משקל מאימון קודם</span> ·{' '}
-                {pick === 0 ? 'פעם קודמת' : `לפני ${pick + 1} אימונים`} · {relativeDay(shown.date)}
+                {relativeDay(shown.date)} · {new Date(shown.date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric', year: '2-digit' })}
               </p>
               <p className="flex flex-wrap gap-x-3 text-[16px] font-bold" dir="ltr" style={{ justifyContent: 'flex-end' }}>
                 {shown.sets.map((s, i) => (
@@ -640,7 +657,13 @@ function ExerciseCard({
               ) : hist.isLoading ? (
                 <span className="px-2 py-2 text-[13px] text-white/40">טוען…</span>
               ) : (
-                history.map((h, i) => (
+                <>
+                {monthAgo > 0 && (
+                  <button type="button" onClick={() => setPick(monthAgo)} className={cn('min-h-[36px] shrink-0 rounded-full px-3 text-[13px] font-bold', pick === monthAgo ? 'bg-[#ef4444] text-white' : 'border border-[#ef4444]/50 text-[#ef4444]')}>
+                    📅 לפני חודש
+                  </button>
+                )}
+                {history.map((h, i) => (
                   <button
                     key={h.date}
                     type="button"
@@ -650,9 +673,10 @@ function ExerciseCard({
                       pick === i ? 'bg-[#ef4444] text-white' : 'bg-white/[0.07] text-white/70 active:bg-white/15'
                     )}
                   >
-                    {i === 0 ? 'קודם' : `לפני ${i + 1}`} · {new Date(h.date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}
+                    {i === 0 ? 'פעם קודמת' : relativeDay(h.date)} · {new Date(h.date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}
                   </button>
-                ))
+                ))}
+                </>
               )}
             </div>
           )}

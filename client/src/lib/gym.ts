@@ -285,6 +285,10 @@ export function relativeDay(iso: string): string {
   if (diff <= 0) return 'היום';
   if (diff === 1) return 'אתמול';
   if (diff < 7) return `לפני ${diff} ימים`;
+  if (diff < 14) return 'לפני שבוע';
+  if (diff < 28) return `לפני ${Math.round(diff / 7)} שבועות`;
+  if (diff < 45) return 'לפני חודש';
+  if (diff < 365) return `לפני ${Math.round(diff / 30)} חודשים`;
   return d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
 }
 

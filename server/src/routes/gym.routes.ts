@@ -702,7 +702,7 @@ router.get(
   '/exercises/:id/history',
   asyncHandler(async (req, res) => {
     const exclude = typeof req.query.exclude === 'string' ? req.query.exclude : undefined;
-    res.json({ history: await historyFor(me(res), req.params.id, exclude, 12) });
+    res.json({ history: await historyFor(me(res), req.params.id, exclude, 60) });
   })
 );
 
