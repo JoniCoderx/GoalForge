@@ -181,6 +181,7 @@ export const gym = {
     send<{ token: string; member: GymMember }>('POST', '/auth/login', data),
   me: () => request<{ member: GymMember }>('/me'),
   members: () => request<{ members: GymMember[] }>('/members'),
+  exerciseHistory: (id: string) => request<{ history: { date: string; sets: SetEntry[] }[] }>(`/exercises/${id}/history`),
 
   plans: () => request<{ plans: Plan[] }>('/plans'),
   renamePlan: (key: string, name: string) => send<{ plans: Plan[] }>('PATCH', `/plans/${key}`, { name }),
@@ -308,7 +309,8 @@ export function fmtDuration(fromIso: string, toIso: string): string {
 }
 
 /** 42.5 → "42.5", 40 → "40". */
-export const fmtKg = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, ''));
+// Up to 2 decimals, exactly as entered (2.25 stays 2.25); strips float noise.
+export const fmtKg = (n: number) => String(Math.round(n * 100) / 100);
 
 export const repsRange = (e: Pick<Exercise, 'repsMin' | 'repsMax'>) =>
   e.repsMin === e.repsMax ? `${e.repsMin}` : `${e.repsMin}–${e.repsMax}`;

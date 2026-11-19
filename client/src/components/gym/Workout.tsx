@@ -508,6 +508,17 @@ function ExerciseCard({
   // null = automatic (collapse once every set is done); true/false = user's choice.
   const [open, setOpen] = useState<boolean | null>(null);
   const collapsed = open === null ? allDone : !open;
+  // Past workouts picker: 0 = last time, 1 = two workouts ago, ...
+  const [pick, setPick] = useState(0);
+  const [showHist, setShowHist] = useState(false);
+  const hist = useQuery({
+    queryKey: ['gym', 'exhist', ex?.id],
+    queryFn: () => gym.exerciseHistory(ex!.id),
+    enabled: showHist && !!ex,
+    staleTime: 60_000,
+  });
+  const history = hist.data?.history ?? [];
+  const shown = pick === 0 ? prev : history[pick] ?? prev;
 
   const setRow = (i: number, patch: Partial<Row>) => onRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
@@ -528,17 +539,18 @@ function ExerciseCard({
   };
 
   const copyPrevious = () => {
-    if (!prev) return;
-    const n = Math.max(prev.sets.length, rows.length);
+    const src = shown;
+    if (!src) return;
+    const n = Math.max(src.sets.length, rows.length);
     onRows(
       Array.from({ length: n }, (_, i) => {
         const cur = rows[i];
         if (cur?.done) return cur;
-        const p = prev.sets[i];
+        const p = src.sets[i];
         return p ? { w: p.weight == null ? '' : fmtKg(p.weight), r: p.reps == null ? '' : String(p.reps), done: false } : cur ?? emptyRow();
       })
     );
-    toast.success('הועתק מהאימון הקודם');
+    toast.success(pick === 0 ? 'הועתק מהאימון הקודם' : `הועתק מלפני ${pick + 1} אימונים`);
   };
 
   if (collapsed) {
@@ -596,18 +608,53 @@ function ExerciseCard({
       </div>
 
       {/* Last time */}
-      {prev ? (
-        <div className="mt-3 flex items-center gap-2 rounded-2xl bg-white/[0.04] px-3 py-2">
-          <div className="min-w-0 flex-1">
-            <p className="text-[12px] font-semibold text-white/40">פעם קודמת · {relativeDay(prev.date)}</p>
-            <p className="truncate text-[15px] font-bold text-white/85" dir="ltr" style={{ textAlign: 'right' }}>
-              {prev.sets.map((s) => `${s.weight != null ? fmtKg(s.weight) : '–'}×${s.reps ?? '–'}`).join('  ·  ')}
-            </p>
+      {shown ? (
+        <div className="mt-3 rounded-2xl bg-white/[0.04] px-3 py-2">
+          <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-[12px] font-semibold text-white/50">
+                <span className="font-bold text-[#ef4444]">משקל מאימון קודם</span> ·{' '}
+                {pick === 0 ? 'פעם קודמת' : `לפני ${pick + 1} אימונים`} · {relativeDay(shown.date)}
+              </p>
+              <p className="flex flex-wrap gap-x-3 text-[16px] font-bold" dir="ltr" style={{ justifyContent: 'flex-end' }}>
+                {shown.sets.map((s, i) => (
+                  <span key={i} className="tabular-nums">
+                    <span className="font-extrabold text-[#ef4444]">{s.weight != null ? fmtKg(s.weight) : '–'}</span>
+                    <span className="text-white/70">×{s.reps ?? '–'}</span>
+                  </span>
+                ))}
+              </p>
+            </div>
+            {editable && (
+              <button type="button" onClick={copyPrevious} className="flex shrink-0 items-center gap-1.5 rounded-xl bg-white/[0.08] px-3 py-2 text-[14px] font-bold active:bg-white/15">
+                <Copy className="h-4 w-4" /> העתקה
+              </button>
+            )}
           </div>
-          {editable && (
-            <button type="button" onClick={copyPrevious} className="flex shrink-0 items-center gap-1.5 rounded-xl bg-white/[0.08] px-3 py-2 text-[14px] font-bold active:bg-white/15">
-              <Copy className="h-4 w-4" /> העתקה
-            </button>
+          {ex && (
+            <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5">
+              {!showHist ? (
+                <button type="button" onClick={() => setShowHist(true)} className="min-h-[36px] shrink-0 rounded-full bg-white/[0.07] px-3 text-[13px] font-semibold text-white/70 active:bg-white/15">
+                  אימונים קודמים ▾
+                </button>
+              ) : hist.isLoading ? (
+                <span className="px-2 py-2 text-[13px] text-white/40">טוען…</span>
+              ) : (
+                history.map((h, i) => (
+                  <button
+                    key={h.date}
+                    type="button"
+                    onClick={() => setPick(i)}
+                    className={cn(
+                      'min-h-[36px] shrink-0 rounded-full px-3 text-[13px] font-semibold',
+                      pick === i ? 'bg-[#ef4444] text-white' : 'bg-white/[0.07] text-white/70 active:bg-white/15'
+                    )}
+                  >
+                    {i === 0 ? 'קודם' : `לפני ${i + 1}`} · {new Date(h.date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}
+                  </button>
+                ))
+              )}
+            </div>
           )}
         </div>
       ) : (
@@ -641,9 +688,9 @@ function ExerciseCard({
                   disabled={!editable}
                   value={r.w}
                   placeholder={p?.weight != null ? fmtKg(p.weight) : 'ק״ג'}
-                  onChange={(e) => setRow(i, { w: e.target.value.replace(/[^\d.,]/g, '').slice(0, 6) })}
+                  onChange={(e) => setRow(i, { w: e.target.value.replace(/[^\d.,]/g, '').slice(0, 7) })}
                   className={cn(
-                    'h-16 w-full rounded-2xl border-2 pt-3 text-center text-[24px] font-extrabold tabular-nums placeholder:font-semibold placeholder:text-white/25 focus:outline-none',
+                    'h-16 w-full rounded-2xl border-2 pt-3 text-center text-[24px] font-extrabold tabular-nums placeholder:font-semibold placeholder:text-[#ef4444]/60 focus:outline-none',
                     r.done ? 'border-[#d4ff3a]/40 bg-[#d4ff3a]/[0.08] text-white' : 'border-white/20 bg-white/[0.08] focus:border-[#d4ff3a] focus:bg-white/[0.12]'
                   )}
                 />
@@ -661,7 +708,7 @@ function ExerciseCard({
                   placeholder={p?.reps != null ? String(p.reps) : 'חזרות'}
                   onChange={(e) => setRow(i, { r: e.target.value.replace(/\D/g, '').slice(0, 3) })}
                   className={cn(
-                    'h-16 w-full rounded-2xl border-2 pt-3 text-center text-[24px] font-extrabold tabular-nums placeholder:font-semibold placeholder:text-white/25 focus:outline-none',
+                    'h-16 w-full rounded-2xl border-2 pt-3 text-center text-[24px] font-extrabold tabular-nums placeholder:font-semibold placeholder:text-[#ef4444]/60 focus:outline-none',
                     r.done ? 'border-[#d4ff3a]/40 bg-[#d4ff3a]/[0.08] text-white' : 'border-white/20 bg-white/[0.08] focus:border-[#d4ff3a] focus:bg-white/[0.12]'
                   )}
                 />

@@ -372,6 +372,24 @@ async function previousFor(memberId: string, exerciseId: string, excludeSessionI
   return sets.length ? { date: hit.session.startedAt, sets } : null;
 }
 
+/** This member's last finished workouts for an exercise, newest first. */
+async function historyFor(memberId: string, exerciseId: string, excludeSessionId: string | undefined, limit: number) {
+  const sessions = await prisma.gymSession.findMany({
+    where: {
+      memberId,
+      endedAt: { not: null },
+      ...(excludeSessionId ? { id: { not: excludeSessionId } } : {}),
+      sets: { some: { exerciseId } },
+    },
+    orderBy: { startedAt: 'desc' },
+    take: limit,
+    select: { id: true, startedAt: true, sets: { where: { exerciseId }, orderBy: { setIndex: 'asc' } } },
+  });
+  return sessions
+    .map((s) => ({ date: s.startedAt, sets: s.sets.filter(counts).map(setDto) }))
+    .filter((h) => h.sets.length > 0);
+}
+
 const STALE_MS = 8 * 60 * 60 * 1000;
 
 /**
@@ -677,6 +695,14 @@ router.get(
       }
     }
     res.json({ total: sessions.length, exercises: [...map.values()].sort((a, b) => b.series.length - a.series.length) });
+  })
+);
+
+router.get(
+  '/exercises/:id/history',
+  asyncHandler(async (req, res) => {
+    const exclude = typeof req.query.exclude === 'string' ? req.query.exclude : undefined;
+    res.json({ history: await historyFor(me(res), req.params.id, exclude, 12) });
   })
 );
 
