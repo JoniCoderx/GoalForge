@@ -256,6 +256,7 @@ model GymMember {
   workouts GymWorkout[]
   sessions GymSession[]
   pushSubs GymPushSub[]
+  steps    GymSteps[]
 }
 
 // Legacy timer-only log from the first version of /gym. Unused; kept so
@@ -369,4 +370,18 @@ model GymPushSub {
   member GymMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@index([memberId])
+}
+
+// Daily step totals synced from the iPhone Health app via an iOS Shortcut.
+model GymSteps {
+  id        String   @id @default(cuid())
+  memberId  String
+  day       String // YYYY-MM-DD, Israel time
+  steps     Int
+  updatedAt DateTime @updatedAt
+
+  member GymMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, day])
+  @@index([day])
 }

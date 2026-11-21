@@ -122,6 +122,41 @@ router.post(
 /* ─────────────── Everything below: signed-in member ─────────────── */
 
 /** Machine photo. <img> can't send headers, so access is by signed URL. */
+/* ── Steps (iPhone Health → iOS Shortcut → here) ───────────────────────── */
+const stepsKey = (memberId: string) =>
+  createHmac('sha256', env.jwtSecret).update(`gym-steps:${memberId}`).digest('base64url').slice(0, 24);
+const israelDay = (d = new Date()) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+
+/**
+ * Public on purpose: the Shortcut can't log in. Authorised by a per-member
+ * HMAC key in the link. Accepts GET or POST, `steps` like "8123", "8,123" or "8123.0".
+ */
+router.all(
+  '/steps/in',
+  asyncHandler(async (req, res) => {
+    const q = { ...(req.query as Record<string, unknown>), ...(typeof req.body === 'object' && req.body ? req.body : {}) };
+    const m = String(q.m ?? '');
+    const k = String(q.k ?? '');
+    if (!m || !safeEqual(k, stepsKey(m))) throw unauthorized('קישור לא תקין');
+    const raw = String(q.steps ?? '').replace(/[^\d.]/g, '');
+    const steps = Math.round(Number(raw));
+    if (!raw || !Number.isFinite(steps) || steps < 0 || steps > 200_000) throw badRequest('מספר צעדים לא תקין');
+    const day = typeof q.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(q.date) ? q.date : israelDay();
+    const member = await prisma.gymMember.findUnique({ where: { id: m }, select: { id: true } });
+    if (!member) throw unauthorized('קישור לא תקין');
+    const cur = await prisma.gymSteps.findUnique({ where: { memberId_day: { memberId: m, day } } });
+    // Daily totals only grow; never let a partial sync lower them.
+    const saved = Math.max(steps, cur?.steps ?? 0);
+    await prisma.gymSteps.upsert({
+      where: { memberId_day: { memberId: m, day } },
+      create: { memberId: m, day, steps: saved },
+      update: { steps: saved },
+    });
+    res.type('text/plain; charset=utf-8').send(`✅ ${saved.toLocaleString('en-US')} צעדים נשמרו ב-GYM·LOG`);
+  })
+);
+
 router.get(
   '/exercises/:id/image',
   asyncHandler(async (req, res) => {
@@ -703,6 +738,34 @@ router.get(
   asyncHandler(async (req, res) => {
     const exclude = typeof req.query.exclude === 'string' ? req.query.exclude : undefined;
     res.json({ history: await historyFor(me(res), req.params.id, exclude, 60) });
+  })
+);
+
+router.get(
+  '/steps',
+  asyncHandler(async (req, res) => {
+    const id = me(res);
+    const days = Array.from({ length: 7 }, (_, i) => israelDay(new Date(Date.now() - (6 - i) * 86_400_000)));
+    const today = days[6];
+    const [mine, todayAll, members] = await Promise.all([
+      prisma.gymSteps.findMany({ where: { memberId: id, day: { in: days } } }),
+      prisma.gymSteps.findMany({ where: { day: today } }),
+      prisma.gymMember.findMany({ select: { id: true, name: true, emoji: true, color: true } }),
+    ]);
+    const last = await prisma.gymSteps.findFirst({ where: { memberId: id }, orderBy: { updatedAt: 'desc' } });
+    const byDay = new Map(mine.map((s) => [s.day, s.steps]));
+    // The host the user actually opened the app on (works on any domain).
+    const origin = `${req.protocol}://${req.get('host')}`;
+    res.json({
+      link: `${origin}/api/gym/steps/in?m=${id}&k=${stepsKey(id)}&steps=`,
+      connected: !!last,
+      lastSync: last?.updatedAt ?? null,
+      week: days.map((d) => ({ day: d, steps: byDay.get(d) ?? 0 })),
+      today: todayAll
+        .map((s) => ({ member: members.find((x) => x.id === s.memberId), steps: s.steps }))
+        .filter((x) => x.member)
+        .sort((a, b) => b.steps - a.steps),
+    });
   })
 );
 

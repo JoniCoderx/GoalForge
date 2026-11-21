@@ -6,6 +6,7 @@ import { fmtClock, gym, relativeDay, type GymMember, type Plan, type Session } f
 import { useNow } from '@/lib/useNow';
 import { Avatar, Card, GymButton, SectionLabel, Sheet } from './shared';
 import { PushCard } from './PushCard';
+import { StepsCard } from './StepsCard';
 
 export function Home({
   me,
@@ -70,6 +71,7 @@ export function Home({
         </motion.button>
       )}
 
+      <StepsCard me={me} />
       <PushCard />
 
       {/* The crew: this week + last workout, one card per person */}

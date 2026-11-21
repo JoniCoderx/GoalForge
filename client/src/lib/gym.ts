@@ -181,6 +181,14 @@ export const gym = {
     send<{ token: string; member: GymMember }>('POST', '/auth/login', data),
   me: () => request<{ member: GymMember }>('/me'),
   members: () => request<{ members: GymMember[] }>('/members'),
+  steps: () =>
+    request<{
+      link: string;
+      connected: boolean;
+      lastSync: string | null;
+      week: { day: string; steps: number }[];
+      today: { member: Pick<GymMember, 'id' | 'name' | 'emoji' | 'color'>; steps: number }[];
+    }>('/steps'),
   exerciseHistory: (id: string) => request<{ history: { date: string; sets: SetEntry[] }[] }>(`/exercises/${id}/history`),
 
   plans: () => request<{ plans: Plan[] }>('/plans'),
