@@ -14,7 +14,8 @@ import { Plans } from '@/components/gym/Plans';
 import { History } from '@/components/gym/History';
 import { Stats } from '@/components/gym/Stats';
 import { Workout } from '@/components/gym/Workout';
-import { Avatar } from '@/components/gym/shared';
+import { Avatar, Sheet } from '@/components/gym/shared';
+import { SharePdfButton } from '@/components/gym/SharePdf';
 
 type Tab = 'home' | 'plans' | 'history' | 'stats';
 const TABS: { key: Tab; label: string; icon: LucideIcon }[] = [
@@ -66,6 +67,7 @@ export default function Gym() {
   const [tab, setTab] = useState<Tab>('home');
   const [planKey, setPlanKey] = useState<'A' | 'B'>('A');
   const [workoutOpen, setWorkoutOpen] = useState(false);
+  const [finishedId, setFinishedId] = useState<string | null>(null);
 
   const signOut = useCallback(async () => {
     // Finish any pending workout saves while the token is still valid.
@@ -205,14 +207,20 @@ export default function Gym() {
             sessionId={active.id}
             visible={workoutOpen}
             onMinimize={() => setWorkoutOpen(false)}
-            onEnded={() => {
+            onEnded={(discarded) => {
               setWorkoutOpen(false);
+              if (!discarded) setFinishedId(active.id);
               qc.setQueryData(['gym', 'active'], { session: null });
               setTab('home');
             }}
           />
         </motion.div>
       )}
+
+      <Sheet open={!!finishedId} onClose={() => setFinishedId(null)} title="כל הכבוד! 💪">
+        <p className="mb-4 text-[15px] text-white/60">האימון נשמר. רוצה לשלוח סיכום לחבר׳ה?</p>
+        {finishedId && <SharePdfButton sessionId={finishedId} memberName={me.name} />}
+      </Sheet>
     </div>
   );
 }

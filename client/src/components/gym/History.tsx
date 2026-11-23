@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { DAY_LABELS, fmtDate, fmtDuration, fmtKg, fmtTime, gym, sameDay, type GymMember } from '@/lib/gym';
 import { cn } from '@/lib/utils';
 import { Avatar, Card, Empty, SectionLabel, Sheet, Thumb } from './shared';
+import { SharePdfButton } from './SharePdf';
 
 export function History({ me, members }: { me: GymMember; members: GymMember[] }) {
   const [month, setMonth] = useState(() => {
@@ -113,13 +114,13 @@ export function History({ me, members }: { me: GymMember; members: GymMember[] }
       )}
 
       <Sheet open={!!openId} onClose={() => setOpenId(null)} title="פירוט אימון">
-        {openId && <SessionDetail id={openId} />}
+        {openId && <SessionDetail id={openId} memberName={me.name} />}
       </Sheet>
     </div>
   );
 }
 
-function SessionDetail({ id }: { id: string }) {
+function SessionDetail({ id, memberName }: { id: string; memberName: string }) {
   const { data, isLoading } = useQuery({ queryKey: ['gym', 'session', id], queryFn: () => gym.session(id) });
   if (isLoading || !data) return <div className="h-40 animate-pulse rounded-2xl bg-white/[0.04]" />;
   const { session, items } = data;
@@ -152,6 +153,11 @@ function SessionDetail({ id }: { id: string }) {
           </div>
         ))}
       </div>
+      {session.endedAt && (
+        <div className="mt-4">
+          <SharePdfButton sessionId={session.id} memberName={memberName} variant="soft" />
+        </div>
+      )}
     </div>
   );
 }
